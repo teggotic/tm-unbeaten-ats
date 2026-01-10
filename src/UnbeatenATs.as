@@ -367,7 +367,13 @@ class UnbeatenATMap {
         Tags = GetData('Tags', Tags);
         MapType = GetData('MapType', MapType);
         SetTags();
-        QueueAuthorLoginCache(AuthorLogin);
+        if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
+            QueueAuthorLoginCache(AuthorLogin);
+        } else if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
+            QueueWsidNameCache(AuthorLogin);
+        } else {
+            throw("unknown api choice: " + tostring(S_API_Choice));
+        }
         if (isBeaten) {
             ATBeatenTimestamp = GetData('ATBeatenTimestamp', ATBeatenTimestamp);
             ATBeatenUser = GetData('ATBeatenUsers', ATBeatenUser);
@@ -387,7 +393,10 @@ class UnbeatenATMap {
 
     string _AuthorDisplayName;
     string get_AuthorDisplayName() const {
-        return GetDisplayNameForLogin(AuthorLogin);
+        if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) return GetDisplayNameForLogin(AuthorLogin);
+        else if (S_API_Choice == UnbeatenATsAPI::Teggots_API) return GetDisplayNameForWsid(AuthorLogin);
+        throw("unknown api choice: " + tostring(S_API_Choice));
+        return "";
         // if (_AuthorDisplayName.Length > 0) return _AuthorDisplayName;
         // if (loginCache.HasKey(AuthorLogin)) _AuthorDisplayName = GetDisplayNameForLogin(AuthorLogin);
     }
