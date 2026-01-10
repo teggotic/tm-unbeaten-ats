@@ -70,7 +70,7 @@ class ListMapsTab : Tab {
         UI::PopStyleColor();
     }
 
-    int tableFlags = UI::TableFlags::SizingStretchProp | UI::TableFlags::Resizable | UI::TableFlags::RowBg;
+    int tableFlags = UI::TableFlags::SizingStretchProp | UI::TableFlags::Resizable | UI::TableFlags::RowBg | UI::TableFlags::ScrollY;
 
     void DrawTable() {
         UI::AlignTextToFramePadding();
@@ -79,30 +79,32 @@ class ListMapsTab : Tab {
 
         g_UnbeatenATs.DrawFilters();
 
-        if (UI::BeginTable("unbeaten-ats", 10, tableFlags)) {
+        if (UI::BeginChild("unbeaten-ats-table")) {
+            if (UI::BeginTable("unbeaten-ats", 10, tableFlags)) {
+                UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
+                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
+                UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
+                UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
+                UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupColumn("AT", UI::TableColumnFlags::WidthFixed, 75);
+                UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 75);
+                UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
+                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
+                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupScrollFreeze(0, 1);
+                UI::TableHeadersRow();
 
-            UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
-            UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
-            UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
-            UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
-            UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
-            UI::TableSetupColumn("AT", UI::TableColumnFlags::WidthFixed, 75);
-            UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 75);
-            UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
-            UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
-            UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 100);
-
-            UI::TableHeadersRow();
-
-            UI::ListClipper clip(g_UnbeatenATs.filteredMaps.Length);
-            while (clip.Step()) {
-                for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
-                    g_UnbeatenATs.filteredMaps[i].DrawUnbeatenTableRow(i + 1);
+                UI::ListClipper clip(g_UnbeatenATs.filteredMaps.Length);
+                while (clip.Step()) {
+                    for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
+                        g_UnbeatenATs.filteredMaps[i].DrawUnbeatenTableRow(i + 1);
+                    }
                 }
-            }
 
-            UI::EndTable();
+                UI::EndTable();
+            }
         }
+        UI::EndChild();
     }
 }
 
@@ -154,35 +156,39 @@ class RecentlyBeatenMapsTab : ListMapsTab {
             UI::EndCombo();
         }
 
-        if (UI::BeginTable("unbeaten-ats", 9, tableFlags)) {
+        if (UI::BeginChild("unbeaten-ats-table")) {
+            if (UI::BeginTable("unbeaten-ats", 9, tableFlags)) {
 
-            UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 50);
-            UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
-            UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
-            UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
-            // UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
-            UI::TableSetupColumn("AT", UI::TableColumnFlags::WidthFixed, 70);
-            UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 70);
-            UI::TableSetupColumn("Beaten By", UI::TableColumnFlags::WidthFixed, 120);
-            // UI::TableSetupColumn("Beaten Ago", UI::TableColumnFlags::WidthFixed, 70);
-            UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 70);
-            UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 50);
+                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
+                UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
+                UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
+                // UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupColumn("AT", UI::TableColumnFlags::WidthFixed, 70);
+                UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 70);
+                UI::TableSetupColumn("Beaten By", UI::TableColumnFlags::WidthFixed, 120);
+                // UI::TableSetupColumn("Beaten Ago", UI::TableColumnFlags::WidthFixed, 70);
+                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 70);
+                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 100);
 
-            UI::TableHeadersRow();
+                UI::TableSetupScrollFreeze(0, 1);
+                UI::TableHeadersRow();
 
-            auto@ theList = showList == RecentlyBeatenList::All
-                ? g_UnbeatenATs.recentlyBeaten
-                : g_UnbeatenATs.recentlyBeaten100k;
+                auto@ theList = showList == RecentlyBeatenList::All
+                    ? g_UnbeatenATs.recentlyBeaten
+                    : g_UnbeatenATs.recentlyBeaten100k;
 
-            UI::ListClipper clip(theList.Length);
-            while (clip.Step()) {
-                for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
-                    theList[i].DrawBeatenTableRow(i + 1);
+                UI::ListClipper clip(theList.Length);
+                while (clip.Step()) {
+                    for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
+                        theList[i].DrawBeatenTableRow(i + 1);
+                    }
                 }
-            }
 
-            UI::EndTable();
+                UI::EndTable();
+            }
         }
+        UI::EndChild();
     }
 }
 
@@ -283,11 +289,14 @@ class LeaderboardTab : Tab {
         UI::Markdown("## Top 100");
 
         UI::PushStyleColor(UI::Col::TableRowBgAlt, vec4(.25, .25, .25, .5));
-        DrawTable();
+        if (UI::BeginChild("unbeaten-ats-lb-table")) {
+            DrawTable();
+        }
+        UI::EndChild();
         UI::PopStyleColor();
     }
 
-    int tableFlags = UI::TableFlags::SizingStretchProp | UI::TableFlags::Resizable | UI::TableFlags::RowBg;
+    int tableFlags = UI::TableFlags::SizingStretchProp | UI::TableFlags::Resizable | UI::TableFlags::RowBg | UI::TableFlags::ScrollY;
 
     void DrawTable() {
         if (UI::BeginTable("unbeaten-ats-lb", 4, tableFlags)) {
@@ -295,6 +304,7 @@ class LeaderboardTab : Tab {
             UI::TableSetupColumn("Score (# 1st ATs)", UI::TableColumnFlags::WidthFixed, 80);
             UI::TableSetupColumn("Name", UI::TableColumnFlags::WidthStretch);
             UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 100);
+            UI::TableSetupScrollFreeze(0, 1);
             UI::TableHeadersRow();
 
             for (uint i = 0; i < g_UnbeatenATsLeaderboard.top100.Length; i++) {
