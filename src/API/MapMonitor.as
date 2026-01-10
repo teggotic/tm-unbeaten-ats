@@ -1,18 +1,25 @@
-const string MM_API_PROD_ROOT = "https://map-monitor.xk.io";
-const string MM_API_DEV_ROOT = "http://localhost:8000";
+enum UnbeatenATsAPI {
+  XertroVs_API, Teggots_API
+}
 
-#if DEV
-[Setting category="[DEV] Debug" name="Local Dev Server"]
-bool S_LocalDev = true;
-#else
-bool S_LocalDev = false;
-#endif
+[Setting category="API" name="Which API? Please note that Teggots API is highly experimental."]
+UnbeatenATsAPI S_API_Choice = UnbeatenATsAPI::XertroVs_API;
+
+string APIChoiceToBaseURL(UnbeatenATsAPI choice) {
+  if (choice == UnbeatenATsAPI::XertroVs_API) return "https://map-monitor.xk.io";
+  if (choice == UnbeatenATsAPI::Teggots_API) return "https://map-monitor.teggot.name";
+  throw("unknown api choice: " + tostring(choice));
+  return "";
+}
+
+string GetAPIBaseURL() {
+  return APIChoiceToBaseURL(S_API_Choice);
+}
 
 const string MM_API_ROOT {
-    get {
-        if (S_LocalDev) return MM_API_DEV_ROOT;
-        else return MM_API_PROD_ROOT;
-    }
+  get {
+    return GetAPIBaseURL();
+  }
 }
 
 namespace MapMonitor {
