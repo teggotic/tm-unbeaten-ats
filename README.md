@@ -10,10 +10,10 @@ The API takes up to 90 minutes to update new times for all maps (200 are checked
 
 License: Public Domain
 
-Authors: XertroV
+Authors: XertroV, teggot
 
-Suggestions/feedback: @XertroV on Openplanet discord
+Suggestions/feedback: @teggot or @XertroV on Openplanet discord. Please, prefer to contact @teggot first.
 
-Code/issues: [https://github.com/XertroV/tm-unbeaten-ats](https://github.com/XertroV/tm-unbeaten-ats)
+Code/issues: [https://github.com/teggotic/tm-unbeaten-ats](https://github.com/teggotic/tm-unbeaten-ats)
 
 GL HF
