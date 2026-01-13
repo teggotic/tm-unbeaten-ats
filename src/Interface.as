@@ -200,6 +200,10 @@ class PlayRandomTab : Tab {
     UnbeatenATMap@ chosen = null;
 
     void DrawInner() override {
+        UI::AlignTextToFramePadding();
+        UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length);
+        DrawRefreshButton();
+        UI::Separator();
         g_UnbeatenATs.DrawFilters();
         UI::AlignTextToFramePadding();
         UI::Text("Choose from " + g_UnbeatenATs.filteredMaps.Length + " maps.");
@@ -324,7 +328,7 @@ class AboutTab : Tab {
     void DrawInner() override {
         UI::Markdown("## Unbeaten ATs");
         UI::AlignTextToFramePadding();
-        UI::TextWrapped("A plugin by XertroV in collaboration with Satamari.");
+        UI::TextWrapped("A plugin by XertroV in collaboration with Satamari. Currently maintained by teggot.");
         UI::AlignTextToFramePadding();
         UI::TextWrapped("For the 100k project, please use Satamari's spreadsheet as the authoritative list. This plugin should be consided a \\$f80beta\\$z. Please report issues on the openplanet discord.");
         if (UI::Button("Open Satamari's Unbeaten ATs Spreadsheet")) {

@@ -170,6 +170,7 @@ class UnbeatenATFilters {
     string MapNameFilter;
     string BeatenByFilter;
     string TagsFilter;
+    string ExcludeTagsFilter;
 
     UnbeatenATFilters() {}
     UnbeatenATFilters(UnbeatenATFilters@ other) {
@@ -182,6 +183,7 @@ class UnbeatenATFilters {
         MapNameFilter = other.MapNameFilter;
         BeatenByFilter = other.BeatenByFilter;
         TagsFilter = other.TagsFilter;
+        ExcludeTagsFilter = other.ExcludeTagsFilter;
     }
 
     bool opEquals(const UnbeatenATFilters@ other) {
@@ -195,6 +197,7 @@ class UnbeatenATFilters {
             && MapNameFilter == other.MapNameFilter
             && BeatenByFilter == other.BeatenByFilter
             && TagsFilter == other.TagsFilter
+            && ExcludeTagsFilter == other.ExcludeTagsFilter
             ;
     }
 
@@ -211,6 +214,7 @@ class UnbeatenATFilters {
         if (!MatchString(mapNameSParts, map.Track_Name)) return false;
         if (!MatchString(beatenBySParts, map.ATBeatenUserDisplayName)) return false;
         if (!MatchString(tagsSParts, map.TagNames)) return false;
+        if (ExcludeTagsFilter.Length > 0 && MatchString(excludeTagsSParts, map.TagNames)) return false;
 
         return true;
     }
@@ -221,6 +225,8 @@ class UnbeatenATFilters {
         AuthorFilter = UI::InputText("Author", AuthorFilter, afChanged);
         MapNameFilter = UI::InputText("Map Name", MapNameFilter, mnfChanged);
         TagsFilter = UI::InputText("Tags (space = wildcard)", TagsFilter, tfChanged);
+        AddSimpleTooltip("Match the order of tags shown in the list. Example: \"LO snOW\" will match \"LOL, SnowCar\", but \"snOW LO\" will not.\n\n\\$iAlso, typing too fast might be an issue, so put a space after or something.");
+        ExcludeTagsFilter = UI::InputText("Exclude Tags (space = wildcard)", ExcludeTagsFilter, tfChanged);
         AddSimpleTooltip("Match the order of tags shown in the list. Example: \"LO snOW\" will match \"LOL, SnowCar\", but \"snOW LO\" will not.\n\n\\$iAlso, typing too fast might be an issue, so put a space after or something.");
         if (includeBeatenFilters) {
             BeatenByFilter = UI::InputText("Beaten By", BeatenByFilter, bbfChanged);
@@ -236,12 +242,14 @@ class UnbeatenATFilters {
     string[]@ mapNameSParts = {};
     string[]@ beatenBySParts = {};
     string[]@ tagsSParts = {};
+    string[]@ excludeTagsSParts = {};
 
     void OnBeforeUpdate() {
         @authorSParts = AuthorFilter.ToLower().Replace(" ", "*").Split("*");
         @mapNameSParts = MapNameFilter.ToLower().Replace(" ", "*").Split("*");
         @beatenBySParts = BeatenByFilter.ToLower().Replace(" ", "*").Split("*");
         @tagsSParts = TagsFilter.ToLower().Replace(" ", "*").Split("*");
+        @excludeTagsSParts = ExcludeTagsFilter.ToLower().Replace(" ", "*").Split("*");
     }
 
 
