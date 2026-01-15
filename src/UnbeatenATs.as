@@ -43,6 +43,7 @@ class UnbeatenATsData {
         doneLoading = false;
         doneLoadingRecent = false;
         maps = {};
+        keys = {};
         hiddenMaps = {};
         filteredMaps = {};
         filteredHiddenMaps = {};
@@ -140,6 +141,7 @@ class UnbeatenATsData {
 
     void UpdateFiltered() {
         filteredMaps.RemoveRange(0, filteredMaps.Length);
+        filteredHiddenMaps.RemoveRange(0, filteredHiddenMaps.Length);
         filters.OnBeforeUpdate();
         uint lastPause = Time::Now;
         for (uint i = 0; i < maps.Length; i++) {
@@ -180,6 +182,7 @@ class UnbeatenATFilters {
     bool First100KOnly = false;
     bool ReverseOrder = false;
     bool FilterNbPlayers = false;
+    bool ShouldPassAtCheck = false;
     int NbPlayers = 0;
     uint NbPlayersOrd = Ord::LTE;
     string AuthorFilter;
@@ -192,6 +195,7 @@ class UnbeatenATFilters {
     UnbeatenATFilters(UnbeatenATFilters@ other) {
         First100KOnly = other.First100KOnly;
         FilterNbPlayers = other.FilterNbPlayers;
+        ShouldPassAtCheck = other.ShouldPassAtCheck;
         NbPlayers = other.NbPlayers;
         NbPlayersOrd = other.NbPlayersOrd;
         ReverseOrder = other.ReverseOrder;
@@ -206,6 +210,7 @@ class UnbeatenATFilters {
         return true
             && First100KOnly == other.First100KOnly
             && FilterNbPlayers == other.FilterNbPlayers
+            && ShouldPassAtCheck == other.ShouldPassAtCheck
             && NbPlayers == other.NbPlayers
             && NbPlayersOrd == other.NbPlayersOrd
             && ReverseOrder == other.ReverseOrder
@@ -219,6 +224,7 @@ class UnbeatenATFilters {
 
     bool Matches(const UnbeatenATMap@ map) {
         if (First100KOnly && map.TrackID > 100000) return false;
+        if (ShouldPassAtCheck && map.AtSetByPlugin) return false;
         if (FilterNbPlayers) {
             if (NbPlayersOrd == Ord::EQ && NbPlayers != map.NbPlayers) return false;
             if (NbPlayersOrd == Ord::LT && NbPlayers >= map.NbPlayers) return false;
@@ -237,6 +243,8 @@ class UnbeatenATFilters {
 
     void Draw(bool includeBeatenFilters = false) {
         First100KOnly = UI::Checkbox("IDs <= 100k", First100KOnly);
+        UI::SameLine();
+        ShouldPassAtCheck = UI::Checkbox("pass AT check", ShouldPassAtCheck);
         bool afChanged, mnfChanged, bbfChanged, tfChanged;
         AuthorFilter = UI::InputText("Author", AuthorFilter, afChanged);
         MapNameFilter = UI::InputText("Map Name", MapNameFilter, mnfChanged);
