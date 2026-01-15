@@ -28,7 +28,9 @@ class UnbeatenATsData {
     int LoadingDoneTime = -1;
 
     UnbeatenATMap@[] maps;
+    UnbeatenATMap@[] hiddenMaps;
     UnbeatenATMap@[] filteredMaps;
+    UnbeatenATMap@[] filteredHiddenMaps;
 
     UnbeatenATMap@[] recentlyBeaten;
     UnbeatenATMap@[] recentlyBeaten100k;
@@ -41,7 +43,9 @@ class UnbeatenATsData {
         doneLoading = false;
         doneLoadingRecent = false;
         maps = {};
+        hiddenMaps = {};
         filteredMaps = {};
+        filteredHiddenMaps = {};
         recentlyBeaten = {};
         recentlyBeaten100k = {};
         startnew(CoroutineFunc(this.RunInit));
@@ -86,7 +90,9 @@ class UnbeatenATsData {
         }
         for (uint i = 0; i < tracks.Length; i++) {
             auto track = tracks[i];
-            maps.InsertLast(UnbeatenATMap(track, keys));
+            auto map = UnbeatenATMap(track, keys);
+            if (map.IsHidden) hiddenMaps.InsertLast(map);
+            else maps.InsertLast(map);
             if ((i+1) % 100 == 0) yield();
         }
     }
@@ -144,6 +150,16 @@ class UnbeatenATsData {
             auto item = maps[i];
             if (filters.Matches(item)) {
                 filteredMaps.InsertLast(item);
+            }
+        }
+        for (uint i = 0; i < hiddenMaps.Length; i++) {
+            if (lastPause + 4 < Time::Now) {
+                yield();
+                lastPause = Time::Now;
+            }
+            auto item = hiddenMaps[i];
+            if (filters.Matches(item)) {
+                filteredHiddenMaps.InsertLast(item);
             }
         }
         UpdateSortOrder();
@@ -348,6 +364,9 @@ class UnbeatenATMap {
     string AuthorLogin;
     string Tags;
     string MapType;
+    bool IsHidden = false;
+    bool AtSetByPlugin = false;
+    string Reason = "";
     string TagNames;
     int ATBeatenTimestamp;
     string ATBeatenUser;
@@ -374,6 +393,9 @@ class UnbeatenATMap {
         AuthorLogin = GetData('AuthorLogin', AuthorLogin);
         Tags = GetData('Tags', Tags);
         MapType = GetData('MapType', MapType);
+        if (HasKey('IsHidden')) IsHidden = GetData('IsHidden', IsHidden);
+        if (HasKey('Reason')) Reason = GetData('Reason', Reason);
+        if (HasKey('AtSetByPlugin')) AtSetByPlugin = GetData('AtSetByPlugin', AtSetByPlugin);
         SetTags();
         if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
             QueueAuthorLoginCache(AuthorLogin);
@@ -444,6 +466,9 @@ class UnbeatenATMap {
     float GetData(const string &in name, float _) {
         return GetData(name);
     }
+    bool GetData(const string &in name, bool _) {
+        return GetData(name);
+    }
     string GetData(const string &in name, const string &in _) {
         auto j = GetData(name);
         // print("GetDataStr: " + Json::Write(j));
@@ -452,6 +477,9 @@ class UnbeatenATMap {
     }
     Json::Value@ GetData(const string &in name) {
         return row[keys.Find(name)];
+    }
+    bool HasKey(const string &in name) {
+        return keys.Find(name) >= 0;
     }
 
     protected void _OnPlayMap_MarkPlayed() {
@@ -483,18 +511,51 @@ class UnbeatenATMap {
         UI::Text(TagNames);
         AddSimpleTooltip(TagNames);
 
-        UI::TableNextColumn();
-        UI::Text(Time::Format(AuthorTime));
+        DrawATCol();
+        DrawWRCols();
+        DrawTableEndCols();
 
+        UI::PopStyleVar();
+    }
+
+    void DrawHiddenUnbeatenTableRow(int i) {
+        UI::PushStyleVar(UI::StyleVar::FramePadding, vec2(2, 0));
+        UI::TableNextRow();
+
+        DrawTableStartCols(i);
+
+        UI::TableNextColumn();
+        UI::Text(TagNames);
+        AddSimpleTooltip(TagNames);
+
+        DrawATCol();
+        DrawWRCols();
+        DrawTableEndCols();
+
+        UI::TableNextColumn();
+        UI::Text("\\$f60" + Icons::ExclamationTriangle);
+        AddSimpleTooltip(Reason);
+
+        UI::PopStyleVar();
+    }
+
+    void DrawATCol() {
+        UI::TableNextColumn();
+        if (AtSetByPlugin) {
+            UI::Text("\\$ff0" + Time::Format(AuthorTime));
+            AddSimpleTooltip("This AT was likely set by a plugin. This doesnt mean AT is impossible/cheated.");
+        } else {
+            UI::Text(Time::Format(AuthorTime));
+        }
+    }
+
+    void DrawWRCols() {
         UI::TableNextColumn();
         UI::Text(WR >= 0 ? Time::Format(WR) : "--");
 
         // missing time
         UI::TableNextColumn();
         UI::Text(WR < 0 ? "--" : Time::Format(WR - AuthorTime));
-
-        DrawTableEndCols();
-        UI::PopStyleVar();
     }
 
     void DrawBeatenTableRow(int i) {
@@ -503,6 +564,7 @@ class UnbeatenATMap {
 
         DrawTableStartCols(i);
 
+        // No need to say AT is set by plugin
         UI::TableNextColumn();
         UI::Text(Time::Format(AuthorTime));
 

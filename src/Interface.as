@@ -30,6 +30,7 @@ TabGroup@ CreateRootTabGroup() {
     PlayRandomTab(root);
     RecentlyBeatenMapsTab(root);
     LeaderboardTab(root);
+    ListHiddenMapsTab(root);
     // LookupMapTab(root);
     AboutTab(root);
     TogetherTab(root);
@@ -74,6 +75,10 @@ class ListMapsTab : Tab {
 
     void DrawTable() {
         UI::AlignTextToFramePadding();
+        if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
+            UI::Text("\\$f60" + Icons::ExclamationTriangle + "You are using XertroVs API, which is currently not updating maps. You can switch to Teggots API in settings but some features are not supported." + "\\$f80");
+        }
+
         UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
         DrawRefreshButton();
 
@@ -90,7 +95,7 @@ class ListMapsTab : Tab {
                 UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
-                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 85);
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
 
@@ -98,6 +103,64 @@ class ListMapsTab : Tab {
                 while (clip.Step()) {
                     for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
                         g_UnbeatenATs.filteredMaps[i].DrawUnbeatenTableRow(i + 1);
+                    }
+                }
+
+                UI::EndTable();
+            }
+        }
+        UI::EndChild();
+    }
+}
+
+class ListHiddenMapsTab : Tab {
+    ListHiddenMapsTab(TabGroup@ parent) {
+        super(parent, "List Hidden Maps", "");
+    }
+    ListHiddenMapsTab(TabGroup@ parent, const string &in name, const string &in icon) {
+        super(parent, name, icon);
+    }
+
+    void DrawInner() override {
+        if (g_UnbeatenATs is null || !g_UnbeatenATs.LoadingDone) {
+            UI::Text("Loading Unbeaten ATs...");
+            return;
+        }
+
+        UI::PushStyleColor(UI::Col::TableRowBgAlt, vec4(.25, .25, .25, .5));
+        DrawTable();
+        UI::PopStyleColor();
+    }
+
+    int tableFlags = UI::TableFlags::SizingStretchProp | UI::TableFlags::Resizable | UI::TableFlags::RowBg | UI::TableFlags::ScrollY;
+
+    void DrawTable() {
+        UI::AlignTextToFramePadding();
+        UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.hiddenMaps.Length + " (Filtered: "+g_UnbeatenATs.filteredHiddenMaps.Length+")");
+        DrawRefreshButton();
+
+        g_UnbeatenATs.DrawFilters();
+
+        if (UI::BeginChild("unbeaten-ats-table")) {
+            if (UI::BeginTable("unbeaten-ats", 11, tableFlags)) {
+                UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
+                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
+                UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
+                UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
+                UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupColumn("AT", UI::TableColumnFlags::WidthFixed, 75);
+                UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 75);
+                UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
+                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
+                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 85);
+                UI::TableSetupColumn("Reason", UI::TableColumnFlags::WidthFixed, 50);
+                UI::TableSetupScrollFreeze(0, 1);
+                UI::TableHeadersRow();
+
+                UI::ListClipper clip(g_UnbeatenATs.filteredHiddenMaps.Length);
+                while (clip.Step()) {
+                    for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
+                        g_UnbeatenATs.filteredHiddenMaps[i].DrawHiddenUnbeatenTableRow(i + 1);
                     }
                 }
 
@@ -218,7 +281,12 @@ class PlayRandomTab : Tab {
             UI::Text("Mapper: " + chosen.AuthorDisplayName);
             UI::Text("TMX: " + chosen.TrackID);
             UI::Text("Tags: " + chosen.TagNames);
-            UI::Text("AT: " + chosen.ATFormatted);
+            if (chosen.AtSetByPlugin) {
+                UI::Text("AT: " + "\\$ff0" + chosen.ATFormatted);
+                AddSimpleTooltip("This AT was likely set by a plugin. This doesnt mean AT is impossible/cheated.");
+            } else {
+                UI::Text("AT: " + chosen.ATFormatted);
+            }
             if (chosen.WR > 0)
                 UI::Text("WR: " + Time::Format(chosen.WR) + " (+"+Time::Format(chosen.WR - chosen.AuthorTime)+")");
             else

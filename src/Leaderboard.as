@@ -33,6 +33,7 @@ class UnbeatenLB {
         lookup.DeleteAll();
         nbPlayers = 0;
         @data = null;
+        top100 = array<LbPlayer>(100);
         scoreToRank.RemoveRange(0, scoreToRank.Length);
         startnew(CoroutineFunc(RunGetData));
     }
