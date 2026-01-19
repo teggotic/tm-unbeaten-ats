@@ -10,12 +10,18 @@ void Main() {
     startnew(PopulateTmxTags);
     startnew(GetAuthorLoginLoop);
     startnew(GetWsidLoop);
+    startnew(MapMonitorCheckIfUserIsTrusted);
 }
 
 void OnDestroyed() { Unload(); }
 void OnDisabled() { Unload(); }
 void Unload() {
 
+}
+
+void MapMonitorCheckIfUserIsTrusted() {
+    trace("NadeoServices::GetAccountID() = " + NadeoServices::GetAccountID());
+    g_isUserTrusted = MapMonitor::IsUserTrusted();
 }
 
 void Render() {

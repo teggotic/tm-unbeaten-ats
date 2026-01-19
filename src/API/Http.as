@@ -50,6 +50,37 @@ Json::Value@ CallMapMonitorApiPath(const string &in path) {
     return Json::Parse(req.String());
 }
 
+Json::Value@ AuthMapMonitor(const string &in token) {
+    auto url = MM_API_ROOT + "/auth/openplanet";
+    trace("[CallMapMonitorApiPath] Requesting: " + url);
+    auto req = Net::HttpRequest();
+    req.Url = url;
+    req.Headers['User-Agent'] = 'MapInfo/Openplanet-Plugin/contact=@XertroV';
+    req.Headers['Content-Type'] = 'application/json';
+    req.Method = Net::HttpMethod::Post;
+    auto body = Json::Object();
+    body["token"] = token;
+    req.Body = Json::Write(body);
+    req.Start();
+    while(!req.Finished()) { yield(); }
+    return Json::Parse(req.String());
+}
+
+Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::HttpMethod &in method) {
+    AssertGoodPath(path);
+    auto url = MM_API_ROOT + path;
+    trace("[CallMapMonitorApiPath] Requesting: " + url);
+    auto token = MapMonitor::GetAuthToken();
+    auto req = Net::HttpRequest();
+    req.Url = MM_API_ROOT + path;
+    req.Headers['User-Agent'] = 'MapInfo/Openplanet-Plugin/contact=@XertroV';
+    req.Headers['Authorization'] = 'Bearer ' + token;
+    req.Method = method;
+    req.Start();
+    while(!req.Finished()) { yield(); }
+    return Json::Parse(req.String());
+}
+
 // Ensure we aren't calling a bad path
 void AssertGoodPath(string &in path) {
     if (path.Length <= 0 || !path.StartsWith("/")) {

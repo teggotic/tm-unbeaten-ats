@@ -359,6 +359,10 @@ int stringLess(const string &in a, const string &in b) {
 
 int lastPickedTrackID;
 
+void OnReportMapClicked(int64 TrackID) {
+    MapMonitor::ReportMap(TrackID);
+}
+
 class UnbeatenATMap {
     Json::Value@ row;
     string[]@ keys;
@@ -375,6 +379,7 @@ class UnbeatenATMap {
     bool IsHidden = false;
     bool AtSetByPlugin = false;
     string Reason = "";
+    string ReportedBy = "";
     string TagNames;
     int ATBeatenTimestamp;
     string ATBeatenUser;
@@ -404,6 +409,7 @@ class UnbeatenATMap {
         if (HasKey('IsHidden')) IsHidden = GetData('IsHidden', IsHidden);
         if (HasKey('Reason')) Reason = GetData('Reason', Reason);
         if (HasKey('AtSetByPlugin')) AtSetByPlugin = GetData('AtSetByPlugin', AtSetByPlugin);
+        if (HasKey('ReportedBy')) ReportedBy = GetData('ReportedBy', ReportedBy);
         SetTags();
         if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
             QueueAuthorLoginCache(AuthorLogin);
@@ -511,6 +517,7 @@ class UnbeatenATMap {
 
     void DrawUnbeatenTableRow(int i) {
         UI::PushStyleVar(UI::StyleVar::FramePadding, vec2(2, 0));
+        if (ReportedBy != "") UI::PushStyleColor(UI::Col::TableRowBg, vec4(1, .06, .06, 1));
         UI::TableNextRow();
 
         DrawTableStartCols(i);
@@ -523,6 +530,14 @@ class UnbeatenATMap {
         DrawWRCols();
         DrawTableEndCols();
 
+        if (g_isUserTrusted) {
+            UI::TableNextColumn();
+            if (UI::Button("Report##" + TrackID)) {
+                startnew(CoroutineFuncUserdataInt64(OnReportMapClicked), TrackID);
+            }
+        }
+
+        if (ReportedBy != "") UI::PopStyleColor();
         UI::PopStyleVar();
     }
 

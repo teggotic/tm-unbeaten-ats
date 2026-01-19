@@ -1,3 +1,5 @@
+bool g_isUserTrusted = false;
+
 [Setting hidden]
 bool g_showWindow = false;
 
@@ -85,7 +87,7 @@ class ListMapsTab : Tab {
         g_UnbeatenATs.DrawFilters();
 
         if (UI::BeginChild("unbeaten-ats-table")) {
-            if (UI::BeginTable("unbeaten-ats", 10, tableFlags)) {
+            if (UI::BeginTable("unbeaten-ats", g_isUserTrusted ? 11 : 10, tableFlags)) {
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
                 UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
                 UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
@@ -96,6 +98,7 @@ class ListMapsTab : Tab {
                 UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
                 UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 85);
+                if (g_isUserTrusted) UI::TableSetupColumn("Report", UI::TableColumnFlags::WidthFixed, 50);
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
 

@@ -81,7 +81,40 @@ namespace MapMonitor {
         return CallMapMonitorApiPath('/tmx/recently_beaten_ats');
     }
 
+    void ReportMap(int TrackID) {
+        CallMapMonitorApiPathAuthorized('/management/report_map/' + TrackID, Net::HttpMethod::Post);
+    }
+
     string MapUrl(int TrackID) {
         return MM_API_ROOT + "/maps/download/" + TrackID;
+    }
+
+    bool g_mmAuthTokenIsLoading = false;
+    string g_mmAuthToken = "";
+
+    const bool IsUserTrusted() {
+        return CallMapMonitorApiPath("/auth/is-trusted/" + NadeoServices::GetAccountID());
+    }
+
+    const string GetAuthToken() {
+        if (g_mmAuthTokenIsLoading) {
+            while (g_mmAuthTokenIsLoading) {
+                yield();
+            }
+        }
+        if (g_mmAuthToken != "") return g_mmAuthToken;
+
+        g_mmAuthTokenIsLoading = true;
+
+        trace("Getting openplanet token");
+        auto tokenTask = Auth::GetToken();
+        while (!tokenTask.Finished()) {
+            yield();
+        }
+        trace("Getting map-monitor token");
+        auto mmTokenRes = AuthMapMonitor(tokenTask.Token());
+        g_mmAuthToken = mmTokenRes.Get("token");
+        g_mmAuthTokenIsLoading = false;
+        return g_mmAuthToken;
     }
 }
