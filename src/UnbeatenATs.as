@@ -177,9 +177,15 @@ enum Ord {
     EQ, LT, GT, LTE, GTE
 }
 
-class UnbeatenATFilters {
+enum IdRange {
+    None = 0,
+    R000_100K = 1,
+    R100_200K = 2,
+    R200_300K = 4,
+}
 
-    bool First100KOnly = false;
+class UnbeatenATFilters {
+    IdRange FilterIdRange = IdRange::None;
     bool ReverseOrder = false;
     bool FilterNbPlayers = false;
     bool ShouldPassAtCheck = false;
@@ -193,7 +199,7 @@ class UnbeatenATFilters {
 
     UnbeatenATFilters() {}
     UnbeatenATFilters(UnbeatenATFilters@ other) {
-        First100KOnly = other.First100KOnly;
+        FilterIdRange = other.FilterIdRange;
         FilterNbPlayers = other.FilterNbPlayers;
         ShouldPassAtCheck = other.ShouldPassAtCheck;
         NbPlayers = other.NbPlayers;
@@ -208,7 +214,7 @@ class UnbeatenATFilters {
 
     bool opEquals(const UnbeatenATFilters@ other) {
         return true
-            && First100KOnly == other.First100KOnly
+            && FilterIdRange == other.FilterIdRange
             && FilterNbPlayers == other.FilterNbPlayers
             && ShouldPassAtCheck == other.ShouldPassAtCheck
             && NbPlayers == other.NbPlayers
@@ -223,7 +229,13 @@ class UnbeatenATFilters {
     }
 
     bool Matches(const UnbeatenATMap@ map) {
-        if (First100KOnly && map.TrackID > 100000) return false;
+        if (FilterIdRange != IdRange::None) {
+            bool isInRange = false;
+            if (FilterIdRange & IdRange::R000_100K > 0 &&      0 < map.TrackID && map.TrackID <= 100000) isInRange = true;
+            if (FilterIdRange & IdRange::R100_200K > 0 && 100000 < map.TrackID && map.TrackID <= 200000) isInRange = true;
+            if (FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
+            if (!isInRange) return false;
+        }
         if (ShouldPassAtCheck && map.AtSetByPlugin) return false;
         if (FilterNbPlayers) {
             if (NbPlayersOrd == Ord::EQ && NbPlayers != map.NbPlayers) return false;
@@ -241,10 +253,26 @@ class UnbeatenATFilters {
         return true;
     }
 
+    void DrawIdRangeFilter(const IdRange &in range, const string &in name) {
+        bool inRange = UI::Checkbox(name, FilterIdRange & range > 0);
+        if (inRange == (FilterIdRange & range > 0)) return;
+
+        if (inRange)
+            FilterIdRange = IdRange(FilterIdRange | range);
+        else
+            FilterIdRange = IdRange(FilterIdRange & ~range);
+    }
+
     void Draw(bool includeBeatenFilters = false) {
-        First100KOnly = UI::Checkbox("IDs <= 100k", First100KOnly);
+        DrawIdRangeFilter(IdRange::R000_100K, "IDs <= 100k");
+        UI::SameLine();
+        DrawIdRangeFilter(IdRange::R100_200K, "IDs >100k & <=200k");
+        UI::SameLine();
+        DrawIdRangeFilter(IdRange::R200_300K, "IDs >200k & <=300k");
         UI::SameLine();
         ShouldPassAtCheck = UI::Checkbox("pass AT check", ShouldPassAtCheck);
+        AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.");
+
         bool afChanged, mnfChanged, bbfChanged, tfChanged;
         AuthorFilter = UI::InputText("Author", AuthorFilter, afChanged);
         MapNameFilter = UI::InputText("Map Name", MapNameFilter, mnfChanged);

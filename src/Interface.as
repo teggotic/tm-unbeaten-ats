@@ -78,7 +78,7 @@ class ListMapsTab : Tab {
     void DrawTable() {
         UI::AlignTextToFramePadding();
         if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
-            UI::Text("\\$f60" + Icons::ExclamationTriangle + "You are using XertroVs API, which is currently not updating maps. You can switch to Teggots API in settings but some features are not supported." + "\\$f80");
+            UI::TextWrapped("\\$f60" + Icons::ExclamationTriangle + "You are using XertroVs API, which is currently not updating maps. You should probably switch to Teggots API in settings, which has up to date list of maps, but some features are not supported." + "\\$f80");
         }
 
         UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
