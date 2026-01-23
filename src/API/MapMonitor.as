@@ -81,8 +81,14 @@ namespace MapMonitor {
         return CallMapMonitorApiPath('/tmx/recently_beaten_ats');
     }
 
-    void ReportMap(int TrackID) {
-        CallMapMonitorApiPathAuthorized('/management/report_map/' + TrackID, Net::HttpMethod::Post);
+    void ReportMap(int TrackID, const string &in reason) {
+        Json::Value@ payload = Json::Object();
+        payload["reason"] = reason;
+        CallMapMonitorApiPathAuthorized('/management/report_map/' + TrackID, Net::HttpMethod::Post, payload);
+    }
+
+    void AddMissingMap(int TrackID) {
+        CallMapMonitorApiPathAuthorized('/management/add_missing_map/' + TrackID, Net::HttpMethod::Post, null);
     }
 
     string MapUrl(int TrackID) {

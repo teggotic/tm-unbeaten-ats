@@ -25,6 +25,10 @@ void MapMonitorCheckIfUserIsTrusted() {
 }
 
 void Render() {
+    if (!UserHasPermissions) return;
+
+    ReportMapDialog::Render();
+    AddMissingMapDialog::Render();
 }
 
 void RenderInterface() {
@@ -72,11 +76,13 @@ shared void NotifyWarning(const string &in msg) {
     UI::ShowNotification(Meta::ExecutingPlugin().Name + ": Warning", msg, vec4(.9, .6, .2, .3), 15000);
 }
 
+shared void ShowSimpleTooltip(const string &in msg) {
+    UI::SetNextWindowSize(400, 0, UI::Cond::Appearing);
+    UI::BeginTooltip();
+    UI::TextWrapped(msg);
+    UI::EndTooltip();
+}
+
 shared void AddSimpleTooltip(const string &in msg) {
-    if (UI::IsItemHovered()) {
-        UI::SetNextWindowSize(400, 0, UI::Cond::Appearing);
-        UI::BeginTooltip();
-        UI::TextWrapped(msg);
-        UI::EndTooltip();
-    }
+    if (UI::IsItemHovered()) ShowSimpleTooltip(msg);
 }

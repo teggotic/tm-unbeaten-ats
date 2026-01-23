@@ -387,8 +387,18 @@ int stringLess(const string &in a, const string &in b) {
 
 int lastPickedTrackID;
 
-void OnReportMapClicked(int64 TrackID) {
-    MapMonitor::ReportMap(TrackID);
+void OnReportMapClicked(UnbeatenATMap@ map) {
+    ReportMapDialog::OpenNew(map);
+}
+
+class ReportedData {
+    string ReportedBy;
+    string Reason;
+
+    ReportedData(const string &in reportedBy, const string &in reason) {
+        ReportedBy = reportedBy;
+        Reason = reason;
+    }
 }
 
 class UnbeatenATMap {
@@ -407,7 +417,7 @@ class UnbeatenATMap {
     bool IsHidden = false;
     bool AtSetByPlugin = false;
     string Reason = "";
-    string ReportedBy = "";
+    ReportedData@[] Reported = {};
     string TagNames;
     int ATBeatenTimestamp;
     string ATBeatenUser;
@@ -437,7 +447,7 @@ class UnbeatenATMap {
         if (HasKey('IsHidden')) IsHidden = GetData('IsHidden', IsHidden);
         if (HasKey('Reason')) Reason = GetData('Reason', Reason);
         if (HasKey('AtSetByPlugin')) AtSetByPlugin = GetData('AtSetByPlugin', AtSetByPlugin);
-        if (HasKey('ReportedBy')) ReportedBy = GetData('ReportedBy', ReportedBy);
+        if (HasKey('Reported')) Reported = GetReportedData();
         SetTags();
         if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
             QueueAuthorLoginCache(AuthorLogin);
@@ -511,6 +521,16 @@ class UnbeatenATMap {
     bool GetData(const string &in name, bool _) {
         return GetData(name);
     }
+
+    ReportedData@[] GetReportedData() {
+        const auto rows = GetData('Reported');
+        ReportedData@[] ret = {};
+        for (uint i = 0; i < rows.Length; i++) {
+            ret.InsertLast(ReportedData(string(rows[i][0]), string(rows[i][1])));
+        }
+        return ret;
+    }
+
     string GetData(const string &in name, const string &in _) {
         auto j = GetData(name);
         // print("GetDataStr: " + Json::Write(j));
@@ -545,7 +565,6 @@ class UnbeatenATMap {
 
     void DrawUnbeatenTableRow(int i) {
         UI::PushStyleVar(UI::StyleVar::FramePadding, vec2(2, 0));
-        if (ReportedBy != "") UI::PushStyleColor(UI::Col::TableRowBg, vec4(1, .06, .06, 1));
         UI::TableNextRow();
 
         DrawTableStartCols(i);
@@ -561,11 +580,10 @@ class UnbeatenATMap {
         if (g_isUserTrusted) {
             UI::TableNextColumn();
             if (UI::Button("Report##" + TrackID)) {
-                startnew(CoroutineFuncUserdataInt64(OnReportMapClicked), TrackID);
+                OnReportMapClicked(this);
             }
         }
 
-        if (ReportedBy != "") UI::PopStyleColor();
         UI::PopStyleVar();
     }
 
@@ -633,7 +651,12 @@ class UnbeatenATMap {
     // 3 cols
     void DrawTableStartCols(int i) {
         UI::TableNextColumn();
-        UI::Text(tostring(i) + ".");
+        if (Reported.Length > 0) {
+            UI::Text("\\$f60" + Icons::ExclamationTriangle + tostring(i) + "." );
+            AddReportedTooltip();
+        } else {
+            UI::Text(tostring(i) + ".");
+        }
 
         UI::TableNextColumn();
         auto btnLab = Icons::Play + " " + TrackID;
@@ -675,6 +698,19 @@ class UnbeatenATMap {
         UI::SameLine();
         if (UI::Button("TMX##" + TrackID)) {
             OpenBrowserURL("https://trackmania.exchange/maps/"+TrackID+"?utm_source=unbeaten-ats-plugin");
+        }
+    }
+
+    void AddReportedTooltip() {
+        if (UI::IsItemHovered()) {
+            string msg = "This map was marked suspicious by:";
+            for (uint j = 0; j < Reported.Length; j++) {
+                const ReportedData@ rep = Reported[j];
+                msg += "\n" + GetDisplayNameForWsid(rep.ReportedBy);
+                if (rep.Reason == "") msg += ": <no reason>";
+                else msg += ": \"" + rep.Reason + "\"";
+            }
+            ShowSimpleTooltip(msg);
         }
     }
 }
