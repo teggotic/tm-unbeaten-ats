@@ -124,10 +124,22 @@ class UnbeatenATsData {
         return doneLoading && doneLoadingRecent;
     }
 
+    bool hiddenFilters = false;
+
     UnbeatenATFilters@ filters = UnbeatenATFilters();
     UnbeatenATSorting@ sorting = UnbeatenATSorting();
     void DrawFilters() {
+        if (hiddenFilters) {
+            if (UI::Button("Show Filters")) {
+                hiddenFilters = false;
+            }
+            return;
+        }
         auto origFilters = UnbeatenATFilters(filters);
+        if (UI::Button("Hide Filters")) {
+            hiddenFilters = true;
+        }
+        UI::SameLine();
         filters.Draw();
         if (origFilters != filters) {
             startnew(CoroutineFunc(UpdateFiltered));

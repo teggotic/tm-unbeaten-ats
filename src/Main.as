@@ -20,8 +20,11 @@ void Unload() {
 }
 
 void MapMonitorCheckIfUserIsTrusted() {
-    trace("NadeoServices::GetAccountID() = " + NadeoServices::GetAccountID());
-    g_isUserTrusted = MapMonitor::IsUserTrusted();
+    if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
+        g_isUserTrusted = MapMonitor::IsUserTrusted();
+    } else {
+        g_isUserTrusted = false;
+    }
 }
 
 void Render() {

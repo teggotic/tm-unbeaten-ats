@@ -31,8 +31,9 @@ void RenderAPISettings() {
 }
 
 void RefreshAPI() {
-  if (g_UnbeatenATs !is null) g_UnbeatenATs.StartRefreshData();
-  if (g_UnbeatenATsLeaderboard !is null) g_UnbeatenATsLeaderboard.StartRefreshData();
+    startnew(MapMonitorCheckIfUserIsTrusted);
+    if (g_UnbeatenATs !is null) g_UnbeatenATs.StartRefreshData();
+    if (g_UnbeatenATsLeaderboard !is null) g_UnbeatenATsLeaderboard.StartRefreshData();
 }
 
 string APIChoiceToBaseURL(UnbeatenATsAPI choice) {
@@ -43,13 +44,13 @@ string APIChoiceToBaseURL(UnbeatenATsAPI choice) {
 }
 
 string GetAPIBaseURL() {
-  return APIChoiceToBaseURL(S_API_Choice);
+    return APIChoiceToBaseURL(S_API_Choice);
 }
 
 const string MM_API_ROOT {
-  get {
-    return GetAPIBaseURL();
-  }
+    get {
+        return GetAPIBaseURL();
+    }
 }
 
 namespace MapMonitor {
