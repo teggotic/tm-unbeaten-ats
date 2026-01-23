@@ -84,6 +84,13 @@ class ListMapsTab : Tab {
         UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
         DrawRefreshButton();
 
+        if (g_isUserTrusted) {
+            UI::SameLine();
+            if (UI::Button("Add missing Map")) {
+                AddMissingMapDialog::OpenNew();
+            }
+        }
+
         g_UnbeatenATs.DrawFilters();
 
         if (UI::BeginChild("unbeaten-ats-table")) {
@@ -280,6 +287,11 @@ class PlayRandomTab : Tab {
             }
         } else {
             UI::AlignTextToFramePadding();
+            if (chosen.Reported.Length > 0) {
+                UI::Text("\\$f60" + Icons::ExclamationTriangle);
+                chosen.AddReportedTooltip();
+                UI::SameLine();
+            }
             UI::Text("Name: " + chosen.Track_Name);
             UI::Text("Mapper: " + chosen.AuthorDisplayName);
             UI::Text("TMX: " + chosen.TrackID);
@@ -514,3 +526,142 @@ class TogetherTab : Tab {
         UI::Text("Rules End: " + GetRulesEndTime());
     }
 }
+
+namespace ReportMapDialog {
+    ModalWindow@ g_dialog = null;
+
+    void Render() {
+        if (g_dialog is null) return;
+
+        g_dialog.Render();
+        if (g_dialog.ShouldClose()) {
+            @g_dialog = null;
+        };
+    }
+
+    void OpenNew(UnbeatenATMap@ map) {
+        @g_dialog = Modal(map);
+    }
+
+    class Modal : ModalWindow {
+        UnbeatenATMap@ map;
+        string reason;
+
+        bool isSubmitting = false;
+
+        Modal(UnbeatenATMap@ map) {
+            super("Report Map###" + map.TrackID);
+            @this.map = map;
+        }
+
+        void Draw() override {
+            UI::AlignTextToFramePadding();
+
+            UI::Text("Please note that you won't see report in the map list until you refresh the data.");
+
+            UI::Text("ID " + map.TrackID + ": \"" + map.Track_Name + "\"");
+            UI::Separator();
+
+            UI::BeginDisabled(isSubmitting);
+            reason = UI::InputText("Reason", reason);
+
+            if (UI::Button("Submit Report")) {
+                startnew(CoroutineFunc(SubmitReport));
+            }
+            UI::SameLine();
+            if (UI::Button("Close")) {
+                Close();
+            }
+
+            if (isSubmitting) {
+                UI::Text("Submitting...");
+            }
+
+            UI::EndDisabled();
+        }
+
+        void SubmitReport() {
+            isSubmitting = true;
+            MapMonitor::ReportMap(map.TrackID, reason);
+            Close();
+            isSubmitting = false;
+        }
+    }
+}
+
+namespace AddMissingMapDialog {
+    ModalWindow@ g_dialog = null;
+
+    void Render() {
+        if (g_dialog is null) return;
+
+        g_dialog.Render();
+        if (g_dialog.ShouldClose()) {
+            @g_dialog = null;
+        };
+    }
+
+    void OpenNew() {
+        @g_dialog = Modal();
+    }
+
+    class Modal : ModalWindow {
+        string mapId;
+
+        string errorMsg = "";
+
+        bool isSubmitting = false;
+
+        Modal() {
+            super("Add missing map###");
+        }
+
+        void Draw() override {
+            UI::AlignTextToFramePadding();
+
+            UI::Text("Please note that you won't see new map in the list until you refresh the data.");
+
+            UI::Separator();
+
+            UI::BeginDisabled(isSubmitting);
+            auto newMapId = UI::InputText("Map ID", mapId);
+            if (newMapId != mapId) {
+                int newMapIdInt;
+                if (newMapId != "" && !Text::TryParseInt(newMapId, newMapIdInt)) {
+                    errorMsg = "Not an integer";
+                } else {
+                    errorMsg = "";
+                }
+                mapId = newMapId;
+            }
+
+            if (errorMsg != "") {
+                UI::Text("\\$f11" + errorMsg);
+            }
+
+            UI::BeginDisabled(errorMsg != "");
+            if (UI::Button("Submit")) {
+                startnew(CoroutineFunc(SubmitMap));
+            }
+            UI::EndDisabled();
+            UI::SameLine();
+            if (UI::Button("Close")) {
+                Close();
+            }
+
+            if (isSubmitting) {
+                UI::Text("Submitting...");
+            }
+
+            UI::EndDisabled();
+        }
+
+        void SubmitMap() {
+            isSubmitting = true;
+            MapMonitor::AddMissingMap(Text::ParseInt(mapId));
+            Close();
+            isSubmitting = false;
+        }
+    }
+}
+

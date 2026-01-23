@@ -66,7 +66,7 @@ Json::Value@ AuthMapMonitor(const string &in token) {
     return Json::Parse(req.String());
 }
 
-Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::HttpMethod &in method) {
+Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::HttpMethod &in method, const Json::Value@ &in payload) {
     AssertGoodPath(path);
     auto url = MM_API_ROOT + path;
     trace("[CallMapMonitorApiPath] Requesting: " + url);
@@ -76,6 +76,7 @@ Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::H
     req.Headers['User-Agent'] = 'MapInfo/Openplanet-Plugin/contact=@XertroV';
     req.Headers['Authorization'] = 'Bearer ' + token;
     req.Method = method;
+    req.Body = Json::Write(payload);
     req.Start();
     while(!req.Finished()) { yield(); }
     return Json::Parse(req.String());

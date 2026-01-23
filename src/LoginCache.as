@@ -24,14 +24,18 @@ string GetDisplayNameForWsid(const string &in wsid) {
 }
 
 void QueueAuthorLoginCache(const string &in login) {
+#if RELEASE
     if (loginCache.HasKey(login) || loginQueued.HasKey(login)) return;
     loginQueued[login] = true;
     loginQueue.InsertLast(login);
+#endif
 }
 void QueueWsidNameCache(const string &in wsid) {
+#if RELEASE
     if (wsidCache.HasKey(wsid) || wsidQueued.HasKey(wsid)) return;
     wsidQueued[wsid] = true;
     wsidQueue.InsertLast(wsid);
+#endif
 }
 
 bool startedAuthorLoginLoop = false;
