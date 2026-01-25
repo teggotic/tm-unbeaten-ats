@@ -75,6 +75,7 @@ Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::H
     req.Url = MM_API_ROOT + path;
     req.Headers['User-Agent'] = 'MapInfo/Openplanet-Plugin/contact=@XertroV';
     req.Headers['Authorization'] = 'Bearer ' + token;
+    req.Headers['Content-Type'] = 'application/json';
     req.Method = method;
     req.Body = Json::Write(payload);
     req.Start();
