@@ -203,9 +203,8 @@ class UnbeatenATFilters {
     bool ShouldPassAtCheck = false;
     int NbPlayers = 0;
     uint NbPlayersOrd = Ord::LTE;
-    string LengthFilterSeconds;
-    int LengthFilterMsInt = -1;
-    bool LengthIsLonger = false;
+    int LengthFilterMinMs = 0;
+    int LengthFilterMaxMs = -1;
     string AuthorFilter;
     string MapNameFilter;
     string BeatenByFilter;
@@ -220,9 +219,8 @@ class UnbeatenATFilters {
         NbPlayers = other.NbPlayers;
         NbPlayersOrd = other.NbPlayersOrd;
         ReverseOrder = other.ReverseOrder;
-        LengthFilterSeconds = other.LengthFilterSeconds;
-        LengthFilterMsInt = other.LengthFilterMsInt;
-        LengthIsLonger = other.LengthIsLonger;
+        LengthFilterMinMs = other.LengthFilterMinMs;
+        LengthFilterMaxMs = other.LengthFilterMaxMs;
         AuthorFilter = other.AuthorFilter;
         MapNameFilter = other.MapNameFilter;
         BeatenByFilter = other.BeatenByFilter;
@@ -238,8 +236,8 @@ class UnbeatenATFilters {
             && NbPlayers == other.NbPlayers
             && NbPlayersOrd == other.NbPlayersOrd
             && ReverseOrder == other.ReverseOrder
-            && LengthFilterMsInt == other.LengthFilterMsInt
-            && LengthIsLonger == other.LengthIsLonger
+            && LengthFilterMinMs == other.LengthFilterMinMs
+            && LengthFilterMaxMs == other.LengthFilterMaxMs
             && AuthorFilter == other.AuthorFilter
             && MapNameFilter == other.MapNameFilter
             && BeatenByFilter == other.BeatenByFilter
@@ -256,13 +254,8 @@ class UnbeatenATFilters {
             if (FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
             if (!isInRange) return false;
         }
-        if (LengthFilterMsInt != -1) {
-            if (LengthIsLonger) {
-                if (map.AuthorTime < LengthFilterMsInt) return false;
-            } else {
-                if (map.AuthorTime > LengthFilterMsInt) return false;
-            }
-        }
+        if (map.AuthorTime < LengthFilterMinMs) return false;
+        if (LengthFilterMaxMs > 0 && map.AuthorTime > LengthFilterMaxMs) return false;
         if (ShouldPassAtCheck && map.AtSetByPlugin) return false;
         if (FilterNbPlayers) {
             if (NbPlayersOrd == Ord::EQ && NbPlayers != map.NbPlayers) return false;
@@ -301,37 +294,30 @@ class UnbeatenATFilters {
         AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.");
 
         bool afChanged, mnfChanged, bbfChanged, tfChanged, lfChanged;
+        UI::SetNextItemWidth(600);
         AuthorFilter = UI::InputText("Author", AuthorFilter, afChanged);
+        UI::SetNextItemWidth(600);
         MapNameFilter = UI::InputText("Map Name", MapNameFilter, mnfChanged);
+        UI::SetNextItemWidth(600);
         TagsFilter = UI::InputText("Tags (space = wildcard)", TagsFilter, tfChanged);
         AddSimpleTooltip("Match the order of tags shown in the list. Example: \"LO snOW\" will match \"LOL, SnowCar\", but \"snOW LO\" will not.\n\n\\$iAlso, typing too fast might be an issue, so put a space after or something.");
+        UI::SetNextItemWidth(600);
         ExcludeTagsFilter = UI::InputText("Exclude Tags (space = wildcard)", ExcludeTagsFilter, tfChanged);
         AddSimpleTooltip("Match the order of tags shown in the list. Example: \"LO snOW\" will match \"LOL, SnowCar\", but \"snOW LO\" will not.\n\n\\$iAlso, typing too fast might be an issue, so put a space after or something.");
 
         UI::AlignTextToFramePadding();
-        UI::Text("Author Time");
+        UI::Text("Author Time length (seconds):");
         UI::SameLine();
-        if (LengthIsLonger) {
-            if (UI::Button(" > ##Length")) LengthIsLonger = false;
-        } else {
-            if (UI::Button(" < ##Length")) LengthIsLonger = true;
-        }
+        UI::Text("Min: ");
         UI::SameLine();
-
-        UI::SetNextItemWidth(546);
-        LengthFilterSeconds = UI::InputText("Length (seconds)", LengthFilterSeconds, lfChanged, UI::InputTextFlags::CharsNoBlank | UI::InputTextFlags::CharsDecimal);
-        if (lfChanged) {
-            if (LengthFilterSeconds.Length > 0) {
-                int LengthFilterSecondsInt = 0;
-                if (Text::TryParseInt(LengthFilterSeconds, LengthFilterSecondsInt)) {
-                    LengthFilterMsInt = LengthFilterSecondsInt * 1000;
-                } else {
-                    LengthFilterMsInt = -1;
-                }
-            } else {
-                LengthFilterMsInt = -1;
-            }
-        }
+        UI::SetNextItemWidth(70);
+        LengthFilterMinMs = 1000 * UI::InputInt("##LenghtMin", int(LengthFilterMinMs / 1000), 0);
+        UI::SameLine();
+        UI::Text("Max: ");
+        AddSimpleTooltip("Leave at 0 to not filter by max length.");
+        UI::SameLine();
+        UI::SetNextItemWidth(70);
+        LengthFilterMaxMs = 1000 * UI::InputInt("##LenghtMax", int(LengthFilterMaxMs / 1000), 0);
 
         if (includeBeatenFilters) {
             BeatenByFilter = UI::InputText("Beaten By", BeatenByFilter, bbfChanged);
@@ -632,12 +618,24 @@ class UnbeatenATMap {
 
         if (g_isUserTrusted) {
             UI::TableNextColumn();
-            if (UI::Button("Report##" + TrackID)) {
-                OnReportMapClicked(this);
+            if(UI::BeginMenu("Admin##" + TrackID)) {
+                if (UI::MenuItem("Add/Replace Note##" + TrackID)) {
+                    OnReportMapClicked(this);
+                }
+                if (UI::MenuItem("Remove my Note##" + TrackID)) {
+                    startnew(CoroutineFunc(RemoveMyCommunityNote));
+                }
+                UI::EndMenu();
             }
         }
 
         UI::PopStyleVar();
+    }
+
+    void RemoveMyCommunityNote() {
+        bool success = MapMonitor::RemoveMyCommunityNote(TrackID);
+        if (success) NotifySuccess("Successfuly removed note from map " + TrackID);
+        else NotifyError("Failed to remove note from map " + TrackID);
     }
 
     void DrawHiddenUnbeatenTableRow(int i) {
@@ -705,7 +703,9 @@ class UnbeatenATMap {
     void DrawTableStartCols(int i) {
         UI::TableNextColumn();
         if (Reported.Length > 0) {
-            UI::Text("\\$f60" + Icons::ExclamationTriangle + tostring(i) + "." );
+            if (UI::Button("\\$f60" + Icons::ExclamationTriangle + tostring(i) + "." )){
+                MapNotesDialog::OpenNew(this.Reported);
+            };
             AddReportedTooltip();
         } else {
             UI::Text(tostring(i) + ".");
@@ -756,14 +756,14 @@ class UnbeatenATMap {
 
     void AddReportedTooltip() {
         if (UI::IsItemHovered()) {
-            string msg = "This map was marked suspicious by:";
+            string msg = "This map has community notes:";
             for (uint j = 0; j < Reported.Length; j++) {
                 const ReportedData@ rep = Reported[j];
                 msg += "\n" + GetDisplayNameForWsid(rep.ReportedBy);
                 if (rep.Reason == "") msg += ": <no reason>";
                 else msg += ": \"" + rep.Reason + "\"";
             }
-            ShowSimpleTooltip(msg);
+            ShowSimpleTooltip(msg, 700);
         }
     }
 }

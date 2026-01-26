@@ -14,10 +14,22 @@ class ModalWindow {
         UI::OpenPopup(modalId);
 
         UI::SetNextWindowSize(int(initialSize.x), int(initialSize.y));
-        if (UI::BeginPopupModal(modalId, windowFlags)) {
-            Draw();
-            UI::EndPopup();
+
+        if (Closeable()) {
+            if (UI::BeginPopupModal(modalId, isVisible, windowFlags)) {
+                Draw();
+                UI::EndPopup();
+            }
+        } else {
+            if (UI::BeginPopupModal(modalId, windowFlags)) {
+                Draw();
+                UI::EndPopup();
+            }
         }
+    }
+
+    bool Closeable() {
+        return false;
     }
 
     void Close()

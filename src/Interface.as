@@ -23,6 +23,10 @@ void UI_Main_Render() {
         }
     }
     UI::End();
+
+    ReportMapDialog::Render();
+    AddMissingMapDialog::Render();
+    MapNotesDialog::Render();
 }
 
 TabGroup@ CreateRootTabGroup() {
@@ -105,7 +109,7 @@ class ListMapsTab : Tab {
                 UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
                 UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 85);
-                if (g_isUserTrusted) UI::TableSetupColumn("Report", UI::TableColumnFlags::WidthFixed, 50);
+                if (g_isUserTrusted) UI::TableSetupColumn("Admin", UI::TableColumnFlags::WidthFixed, 50);
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
 
@@ -184,7 +188,7 @@ class ListHiddenMapsTab : Tab {
 
 void DrawRefreshButton() {
     UI::SameLine();
-    UI::BeginDisabled(g_UnbeatenATs.LoadingDoneTime + (5 * 60 * 1000) > int(Time::Now));
+    UI::BeginDisabled(S_API_Choice == UnbeatenATsAPI::XertroVs_API && g_UnbeatenATs.LoadingDoneTime + (5 * 60 * 1000) > int(Time::Now));
     if (UI::Button("Refresh")) {
         g_UnbeatenATs.StartRefreshData();
     }
@@ -288,7 +292,9 @@ class PlayRandomTab : Tab {
         } else {
             UI::AlignTextToFramePadding();
             if (chosen.Reported.Length > 0) {
-                UI::Text("\\$f60" + Icons::ExclamationTriangle);
+                if (UI::Button("\\$f60" + Icons::ExclamationTriangle)) {
+                    MapNotesDialog::OpenNew(chosen.Reported);
+                };
                 chosen.AddReportedTooltip();
                 UI::SameLine();
             }
@@ -298,7 +304,7 @@ class PlayRandomTab : Tab {
             UI::Text("Tags: " + chosen.TagNames);
             if (chosen.AtSetByPlugin) {
                 UI::Text("AT: " + "\\$ff0" + chosen.ATFormatted);
-                AddSimpleTooltip("This AT was likely set by a plugin. This doesnt mean AT is impossible/cheated.");
+                AddSimpleTooltip("This AT was likely set by a plugin.\nThis doesnt mean AT is impossible/cheated.");
             } else {
                 UI::Text("AT: " + chosen.ATFormatted);
             }
@@ -545,7 +551,7 @@ namespace ReportMapDialog {
 
     class Modal : ModalWindow {
         UnbeatenATMap@ map;
-        string reason;
+        string note;
 
         bool isSubmitting = false;
 
@@ -563,11 +569,14 @@ namespace ReportMapDialog {
             UI::Separator();
 
             UI::BeginDisabled(isSubmitting);
-            reason = UI::InputText("Reason", reason);
+            note = UI::InputText("Note", note);
 
-            if (UI::Button("Submit Report")) {
-                startnew(CoroutineFunc(SubmitReport));
+            UI::BeginDisabled(note == "");
+            if (UI::Button("Submit Note")) {
+                startnew(CoroutineFunc(Submit));
             }
+            UI::EndDisabled();
+
             UI::SameLine();
             if (UI::Button("Close")) {
                 Close();
@@ -580,9 +589,11 @@ namespace ReportMapDialog {
             UI::EndDisabled();
         }
 
-        void SubmitReport() {
+        void Submit() {
             isSubmitting = true;
-            MapMonitor::ReportMap(map.TrackID, reason);
+            bool success = MapMonitor::ReportMap(map.TrackID, note);
+            if (success) NotifySuccess("Successfuly added note to map " + map.TrackID);
+            else NotifyError("Failed to add note to map " + map.TrackID);
             Close();
             isSubmitting = false;
         }
@@ -606,7 +617,7 @@ namespace AddMissingMapDialog {
     }
 
     class Modal : ModalWindow {
-        string mapId;
+        int mapId;
 
         string errorMsg = "";
 
@@ -624,26 +635,11 @@ namespace AddMissingMapDialog {
             UI::Separator();
 
             UI::BeginDisabled(isSubmitting);
-            auto newMapId = UI::InputText("Map ID", mapId);
-            if (newMapId != mapId) {
-                int newMapIdInt;
-                if (newMapId != "" && !Text::TryParseInt(newMapId, newMapIdInt)) {
-                    errorMsg = "Not an integer";
-                } else {
-                    errorMsg = "";
-                }
-                mapId = newMapId;
-            }
+            mapId = UI::InputInt("Map ID", mapId, 0);
 
-            if (errorMsg != "") {
-                UI::Text("\\$f11" + errorMsg);
-            }
-
-            UI::BeginDisabled(errorMsg != "");
             if (UI::Button("Submit")) {
                 startnew(CoroutineFunc(SubmitMap));
             }
-            UI::EndDisabled();
             UI::SameLine();
             if (UI::Button("Close")) {
                 Close();
@@ -658,9 +654,54 @@ namespace AddMissingMapDialog {
 
         void SubmitMap() {
             isSubmitting = true;
-            MapMonitor::AddMissingMap(Text::ParseInt(mapId));
+            MapMonitor::AddMissingMap(mapId);
             Close();
             isSubmitting = false;
+        }
+    }
+}
+
+namespace MapNotesDialog {
+    ModalWindow@ g_dialog = null;
+
+    void Render() {
+        if (g_dialog is null) return;
+
+        g_dialog.Render();
+        if (g_dialog.ShouldClose()) {
+            @g_dialog = null;
+        };
+    }
+
+    void OpenNew(const ReportedData@[] data) {
+        @g_dialog = Modal(data);
+    }
+
+    class Modal : ModalWindow {
+        ReportedData@[]@ data;
+
+        string msg = "";
+
+        Modal(ReportedData@[] &in data) {
+            super("Map notes###");
+            initialSize = vec2(800, 600);
+            @this.data = data;
+            trace("data length: " + data.Length);
+        }
+
+        void Draw() override {
+            UI::AlignTextToFramePadding();
+            UI::Text("Community notes for this map:");
+            for (uint j = 0; j < data.Length; j++) {
+                const ReportedData@ rep = data[j];
+                UI::Text(GetDisplayNameForWsid(rep.ReportedBy) + ": ");
+                UI::SetNextItemWidth(700);
+                UI::InputText("##Notes" + rep.ReportedBy, rep.Reason.Length > 0 ? rep.Reason : "<no reason>", UI::InputTextFlags::ReadOnly);
+            }
+        }
+
+        bool Closeable() {
+            return true;
         }
     }
 }

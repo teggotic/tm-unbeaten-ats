@@ -66,7 +66,7 @@ Json::Value@ AuthMapMonitor(const string &in token) {
     return Json::Parse(req.String());
 }
 
-Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::HttpMethod &in method, const Json::Value@ &in payload) {
+Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::HttpMethod &in method, const Json::Value@ &in payload, bool &out success) {
     AssertGoodPath(path);
     auto url = MM_API_ROOT + path;
     trace("[CallMapMonitorApiPath] Requesting: " + url);
@@ -80,6 +80,7 @@ Json::Value@ CallMapMonitorApiPathAuthorized(const string &in path, const Net::H
     req.Body = Json::Write(payload);
     req.Start();
     while(!req.Finished()) { yield(); }
+    success = req.ResponseCode() == 200;
     return Json::Parse(req.String());
 }
 
