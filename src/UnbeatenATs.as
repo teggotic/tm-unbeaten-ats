@@ -203,6 +203,9 @@ class UnbeatenATFilters {
     bool ShouldPassAtCheck = false;
     int NbPlayers = 0;
     uint NbPlayersOrd = Ord::LTE;
+    string LengthFilterSeconds;
+    int LengthFilterMsInt = -1;
+    bool LengthIsLonger = false;
     string AuthorFilter;
     string MapNameFilter;
     string BeatenByFilter;
@@ -217,6 +220,9 @@ class UnbeatenATFilters {
         NbPlayers = other.NbPlayers;
         NbPlayersOrd = other.NbPlayersOrd;
         ReverseOrder = other.ReverseOrder;
+        LengthFilterSeconds = other.LengthFilterSeconds;
+        LengthFilterMsInt = other.LengthFilterMsInt;
+        LengthIsLonger = other.LengthIsLonger;
         AuthorFilter = other.AuthorFilter;
         MapNameFilter = other.MapNameFilter;
         BeatenByFilter = other.BeatenByFilter;
@@ -232,6 +238,8 @@ class UnbeatenATFilters {
             && NbPlayers == other.NbPlayers
             && NbPlayersOrd == other.NbPlayersOrd
             && ReverseOrder == other.ReverseOrder
+            && LengthFilterMsInt == other.LengthFilterMsInt
+            && LengthIsLonger == other.LengthIsLonger
             && AuthorFilter == other.AuthorFilter
             && MapNameFilter == other.MapNameFilter
             && BeatenByFilter == other.BeatenByFilter
@@ -247,6 +255,13 @@ class UnbeatenATFilters {
             if (FilterIdRange & IdRange::R100_200K > 0 && 100000 < map.TrackID && map.TrackID <= 200000) isInRange = true;
             if (FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
             if (!isInRange) return false;
+        }
+        if (LengthFilterMsInt != -1) {
+            if (LengthIsLonger) {
+                if (map.AuthorTime < LengthFilterMsInt) return false;
+            } else {
+                if (map.AuthorTime > LengthFilterMsInt) return false;
+            }
         }
         if (ShouldPassAtCheck && map.AtSetByPlugin) return false;
         if (FilterNbPlayers) {
@@ -285,13 +300,39 @@ class UnbeatenATFilters {
         ShouldPassAtCheck = UI::Checkbox("pass AT check", ShouldPassAtCheck);
         AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.");
 
-        bool afChanged, mnfChanged, bbfChanged, tfChanged;
+        bool afChanged, mnfChanged, bbfChanged, tfChanged, lfChanged;
         AuthorFilter = UI::InputText("Author", AuthorFilter, afChanged);
         MapNameFilter = UI::InputText("Map Name", MapNameFilter, mnfChanged);
         TagsFilter = UI::InputText("Tags (space = wildcard)", TagsFilter, tfChanged);
         AddSimpleTooltip("Match the order of tags shown in the list. Example: \"LO snOW\" will match \"LOL, SnowCar\", but \"snOW LO\" will not.\n\n\\$iAlso, typing too fast might be an issue, so put a space after or something.");
         ExcludeTagsFilter = UI::InputText("Exclude Tags (space = wildcard)", ExcludeTagsFilter, tfChanged);
         AddSimpleTooltip("Match the order of tags shown in the list. Example: \"LO snOW\" will match \"LOL, SnowCar\", but \"snOW LO\" will not.\n\n\\$iAlso, typing too fast might be an issue, so put a space after or something.");
+
+        UI::AlignTextToFramePadding();
+        UI::Text("Author Time");
+        UI::SameLine();
+        if (LengthIsLonger) {
+            if (UI::Button(" > ##Length")) LengthIsLonger = false;
+        } else {
+            if (UI::Button(" < ##Length")) LengthIsLonger = true;
+        }
+        UI::SameLine();
+
+        UI::SetNextItemWidth(546);
+        LengthFilterSeconds = UI::InputText("Length (seconds)", LengthFilterSeconds, lfChanged, UI::InputTextFlags::CharsNoBlank | UI::InputTextFlags::CharsDecimal);
+        if (lfChanged) {
+            if (LengthFilterSeconds.Length > 0) {
+                int LengthFilterSecondsInt = 0;
+                if (Text::TryParseInt(LengthFilterSeconds, LengthFilterSecondsInt)) {
+                    LengthFilterMsInt = LengthFilterSecondsInt * 1000;
+                } else {
+                    LengthFilterMsInt = -1;
+                }
+            } else {
+                LengthFilterMsInt = -1;
+            }
+        }
+
         if (includeBeatenFilters) {
             BeatenByFilter = UI::InputText("Beaten By", BeatenByFilter, bbfChanged);
         }
