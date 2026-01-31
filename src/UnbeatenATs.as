@@ -124,7 +124,7 @@ class UnbeatenATsData {
         return doneLoading && doneLoadingRecent;
     }
 
-    bool hiddenFilters = false;
+    bool hiddenFilters = true;
 
     UnbeatenATFilters@ filters = UnbeatenATFilters();
     UnbeatenATSorting@ sorting = UnbeatenATSorting();
@@ -205,6 +205,12 @@ class UnbeatenATFilters {
     uint NbPlayersOrd = Ord::LTE;
     int LengthFilterMinMs = 0;
     int LengthFilterMaxMs = -1;
+    int64 UploadedFrom = -1;
+    string UploadedFromStr = "";
+    bool UploadedFromSuccess = true;
+    int64 UploadedBefore = -1;
+    string UploadedBeforeStr = "";
+    bool UploadedBeforeSuccess = true;
     string AuthorFilter;
     string MapNameFilter;
     string BeatenByFilter;
@@ -221,6 +227,12 @@ class UnbeatenATFilters {
         ReverseOrder = other.ReverseOrder;
         LengthFilterMinMs = other.LengthFilterMinMs;
         LengthFilterMaxMs = other.LengthFilterMaxMs;
+        UploadedFrom = other.UploadedFrom;
+        UploadedFromStr = other.UploadedFromStr;
+        UploadedFromSuccess = other.UploadedFromSuccess;
+        UploadedBefore = other.UploadedBefore;
+        UploadedBeforeStr = other.UploadedBeforeStr;
+        UploadedBeforeSuccess = other.UploadedBeforeSuccess;
         AuthorFilter = other.AuthorFilter;
         MapNameFilter = other.MapNameFilter;
         BeatenByFilter = other.BeatenByFilter;
@@ -238,6 +250,8 @@ class UnbeatenATFilters {
             && ReverseOrder == other.ReverseOrder
             && LengthFilterMinMs == other.LengthFilterMinMs
             && LengthFilterMaxMs == other.LengthFilterMaxMs
+            && UploadedFrom == other.UploadedFrom
+            && UploadedBefore == other.UploadedBefore
             && AuthorFilter == other.AuthorFilter
             && MapNameFilter == other.MapNameFilter
             && BeatenByFilter == other.BeatenByFilter
@@ -254,6 +268,8 @@ class UnbeatenATFilters {
             if (FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
             if (!isInRange) return false;
         }
+        if (UploadedFrom > 0 && map.UploadedTimestamp < UploadedFrom) return false;
+        if (UploadedBefore > 0 && map.UploadedTimestamp > UploadedBefore) return false;
         if (map.AuthorTime < LengthFilterMinMs) return false;
         if (LengthFilterMaxMs > 0 && map.AuthorTime > LengthFilterMaxMs) return false;
         if (ShouldPassAtCheck && map.AtSetByPlugin) return false;
@@ -318,6 +334,54 @@ class UnbeatenATFilters {
         UI::SameLine();
         UI::SetNextItemWidth(70);
         LengthFilterMaxMs = 1000 * UI::InputInt("##LenghtMax", int(LengthFilterMaxMs / 1000), 0);
+
+        UI::AlignTextToFramePadding();
+        bool fromChanged, beforeChanged;
+        UI::Text("Uploaded From: ");
+        UI::SameLine();
+        UI::SetNextItemWidth(150);
+        UploadedFromStr = UI::InputText("##UploadedFrom", UploadedFromStr, fromChanged);
+        AddSimpleTooltip("YYYY-MM-DD format. Leave blank to not filter by uploaded date.", 600);
+        if (fromChanged) {
+            if (UploadedFromStr == "") {
+                UploadedFrom = -1;
+                UploadedFromSuccess = true;
+            } else {
+                try {
+                    UploadedFrom = Time::ParseFormatString("%Y-%m-%d", UploadedFromStr);
+                    UploadedFromSuccess = true;
+                } catch {
+                    UploadedFromSuccess = false;
+                }
+            }
+        }
+
+        if (!UploadedBeforeSuccess) UI::PushStyleColor(UI::Col::Text, vec4(1.0, 0.3, 0.3, 1.0));
+        UI::SameLine();
+        UI::Text(" To: ");
+        UI::SameLine();
+        UI::SetNextItemWidth(150);
+        UploadedBeforeStr = UI::InputText("##UploadedBefore", UploadedBeforeStr, beforeChanged);
+        if (!UploadedBeforeSuccess) {
+            auto msg = "Expected format: YYYY-MM-DD";
+            AddSimpleTooltip("Incorrect date format. Enter a valid date or clear the field.\nUsing previous value of " + Time::FormatString("%Y-%m-%d", UploadedBefore) + " instead.", 800);
+            UI::PopStyleColor();
+        } else {
+            AddSimpleTooltip("YYYY-MM-DD format. Leave blank to not filter by uploaded date.", 600);
+        }
+        if (beforeChanged) {
+            if (UploadedBeforeStr == "") {
+                UploadedBefore = -1;
+                UploadedBeforeSuccess = true;
+            } else {
+                try {
+                    UploadedBefore = Time::ParseFormatString("%Y-%m-%d", UploadedBeforeStr);
+                    UploadedBeforeSuccess = true;
+                } catch {
+                    UploadedBeforeSuccess = false;
+                }
+            }
+        }
 
         if (includeBeatenFilters) {
             BeatenByFilter = UI::InputText("Beaten By", BeatenByFilter, bbfChanged);
@@ -455,6 +519,7 @@ class UnbeatenATMap {
     string MapType;
     bool IsHidden = false;
     bool AtSetByPlugin = false;
+    int64 UploadedTimestamp = 1769868872;
     string Reason = "";
     ReportedData@[] Reported = {};
     string TagNames;
@@ -487,6 +552,7 @@ class UnbeatenATMap {
         if (HasKey('Reason')) Reason = GetData('Reason', Reason);
         if (HasKey('AtSetByPlugin')) AtSetByPlugin = GetData('AtSetByPlugin', AtSetByPlugin);
         if (HasKey('Reported')) Reported = GetReportedData();
+        if (HasKey('UploadedTimestamp')) UploadedTimestamp = GetData('UploadedTimestamp', UploadedTimestamp);
         SetTags();
         if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
             QueueAuthorLoginCache(AuthorLogin);
@@ -552,6 +618,9 @@ class UnbeatenATMap {
     }
 
     int GetData(const string &in name, int _) {
+        return GetData(name);
+    }
+    int GetData(const string &in name, int64 _) {
         return GetData(name);
     }
     float GetData(const string &in name, float _) {
