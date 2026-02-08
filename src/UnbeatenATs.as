@@ -196,6 +196,10 @@ enum IdRange {
     R200_300K = 4,
 }
 
+enum NotesFilter {
+    None, OnlyWithNotes, OnlyWithoutNotes
+}
+
 class UnbeatenATFilters {
     IdRange FilterIdRange = IdRange::None;
     bool ReverseOrder = false;
@@ -211,6 +215,8 @@ class UnbeatenATFilters {
     int64 UploadedBefore = -1;
     string UploadedBeforeStr = "";
     bool UploadedBeforeSuccess = true;
+    NotesFilter NotesFilter = NotesFilter::None;
+    string IdFilter = "";
     string AuthorFilter;
     string MapNameFilter;
     string BeatenByFilter;
@@ -233,6 +239,8 @@ class UnbeatenATFilters {
         UploadedBefore = other.UploadedBefore;
         UploadedBeforeStr = other.UploadedBeforeStr;
         UploadedBeforeSuccess = other.UploadedBeforeSuccess;
+        NotesFilter = other.NotesFilter;
+        IdFilter = other.IdFilter;
         AuthorFilter = other.AuthorFilter;
         MapNameFilter = other.MapNameFilter;
         BeatenByFilter = other.BeatenByFilter;
@@ -252,6 +260,8 @@ class UnbeatenATFilters {
             && LengthFilterMaxMs == other.LengthFilterMaxMs
             && UploadedFrom == other.UploadedFrom
             && UploadedBefore == other.UploadedBefore
+            && NotesFilter == other.NotesFilter
+            && IdFilter == other.IdFilter
             && AuthorFilter == other.AuthorFilter
             && MapNameFilter == other.MapNameFilter
             && BeatenByFilter == other.BeatenByFilter
@@ -268,8 +278,18 @@ class UnbeatenATFilters {
             if (FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
             if (!isInRange) return false;
         }
+        if (IdFilter.Length > 0 && !tostring(map.TrackID).StartsWith(IdFilter)) return false;
         if (UploadedFrom > 0 && map.UploadedTimestamp < UploadedFrom) return false;
         if (UploadedBefore > 0 && map.UploadedTimestamp > UploadedBefore) return false;
+        switch (NotesFilter) {
+            case NotesFilter::None: break;
+            case NotesFilter::OnlyWithNotes:
+                if (map.Reported.Length == 0) return false;
+                break;
+            case NotesFilter::OnlyWithoutNotes:
+                if (map.Reported.Length > 0) return false;
+                break;
+        }
         if (map.AuthorTime < LengthFilterMinMs) return false;
         if (LengthFilterMaxMs > 0 && map.AuthorTime > LengthFilterMaxMs) return false;
         if (ShouldPassAtCheck && map.AtSetByPlugin) return false;
@@ -308,6 +328,9 @@ class UnbeatenATFilters {
         UI::SameLine();
         ShouldPassAtCheck = UI::Checkbox("pass AT check", ShouldPassAtCheck);
         AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.");
+
+        UI::SetNextItemWidth(80);
+        IdFilter = UI::InputText("ID starts with", IdFilter);
 
         bool afChanged, mnfChanged, bbfChanged, tfChanged, lfChanged;
         UI::SetNextItemWidth(600);
