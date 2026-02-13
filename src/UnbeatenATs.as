@@ -138,7 +138,7 @@ class UnbeatenATsData {
         if (UI::Button("Hide Filters")) {
             hiddenFilters = true;
         }
-        UI::SameLine();
+
         filters.Draw();
         if (filters._changed) {
             startnew(CoroutineFunc(UpdateFiltered));
@@ -229,7 +229,9 @@ class UnbeatenATFilters {
     string MapNameFilter = "";
     string BeatenByFilter = "";
     int[] TagsFilter = {};
+    bool TagsFilterStrict = false;
     int[] ExcludeTagsFilter = {};
+    bool ShowOnlyNotes = false;
 
     bool _changed = false;
     void MarkChanged() {
@@ -249,6 +251,7 @@ class UnbeatenATFilters {
             if (FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
             if (!isInRange) return false;
         }
+        if (ShowOnlyNotes && map.Reported.Length == 0) return false;
         if (IdFilter.Length > 0 && !tostring(map.TrackID).StartsWith(IdFilter)) return false;
         if (UploadedFrom.value > 0 && map.UploadedTimestamp < UploadedFrom.value) return false;
         if (UploadedBefore.value > 0 && map.UploadedTimestamp > UploadedBefore.value) return false;
@@ -275,8 +278,19 @@ class UnbeatenATFilters {
         if (!MatchString(mapNameSParts, map.Track_Name)) return false;
         if (!MatchString(beatenBySParts, map.ATBeatenUserDisplayName)) return false;
         if (TagsFilter.Length > 0) {
-            for (uint i = 0; i < TagsFilter.Length; i++) {
-                if (map.Tags.Find(TagsFilter[i]) == -1) return false;
+            if (TagsFilterStrict) {
+                for (uint i = 0; i < TagsFilter.Length; i++) {
+                    if (map.Tags.Find(TagsFilter[i]) == -1) return false;
+                }
+            } else {
+                bool found = false;
+                for (uint i = 0; i < TagsFilter.Length; i++) {
+                    if (map.Tags.Find(TagsFilter[i]) != -1) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
             }
         }
         if (ExcludeTagsFilter.Length > 0) {
@@ -298,7 +312,7 @@ class UnbeatenATFilters {
             FilterIdRange = IdRange(FilterIdRange & ~range);
     }
 
-    void DrawTagsFilter(const string &in comboId, int[]@ tags) {
+    void DrawTagsFilter(const string &in comboId, int[]@ tags, int maxAllowed = 0) {
         string label;
         if (tags.Length == 0) {
             label = "No tags selected";
@@ -309,6 +323,10 @@ class UnbeatenATFilters {
             }
         } else {
             label = tags.Length + " tags selected";
+        }
+        auto tooMany = maxAllowed != 0 && tags.Length > maxAllowed;
+        if (tooMany) {
+            UI::PushStyleColor(UI::Col::Text, vec4(0.8, 0.8, 0.3, 1.0));
         }
         if (UI::BeginCombo(comboId, label)) {
             for (uint i = 0; i < sortedTagList.Length; i++) {
@@ -329,16 +347,19 @@ class UnbeatenATFilters {
             }
             UI::EndCombo();
         }
-        if (tags.Length > 0) {
-            UI::SameLine();
-            if (UI::Button("x##" + comboId)) {
-                tags.RemoveRange(0, tags.Length);
-                MarkChanged();
-            }
-        } else {
-            UI::SameLine();
-            UI::Text("      ");
+        if (tooMany) {
+            UI::PopStyleColor();
+            AddSimpleTooltip("Any map can have " + maxAllowed + " tags at maximum. You should probably remove some tags or switch to OR mode.");
         }
+        UI::PushStyleColor(UI::Col::Button, vec4(1.0, 1.0, 1.0, 0.2));
+        UI::BeginDisabled(tags.Length == 0);
+        UI::SameLine();
+        if (UI::Button("x##" + comboId)) {
+            tags.RemoveRange(0, tags.Length);
+            MarkChanged();
+        }
+        UI::EndDisabled();
+        UI::PopStyleColor();
     }
 
     const bool TrackedCheckbox(const string &in name, bool &in value) {
@@ -395,65 +416,97 @@ class UnbeatenATFilters {
     }
 
     void Draw(bool includeBeatenFilters = false) {
-        DrawIdRangeFilter(IdRange::R000_100K, "IDs 0-100k");
-        UI::SameLine();
-        DrawIdRangeFilter(IdRange::R100_200K, "IDs 100k-200k");
-        UI::SameLine();
-        DrawIdRangeFilter(IdRange::R200_300K, "IDs 200k-300k");
+        const int LabelSize = 120;
+        const int InputsSize = 300;
 
-        UI::SameLine();
-        ShouldPassAtCheck = TrackedCheckbox("AT isn't plugin", ShouldPassAtCheck);
-        AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.", 600);
+        {
+            DrawIdRangeFilter(IdRange::R000_100K, "IDs 0-100k");
+            UI::SameLine();
+            DrawIdRangeFilter(IdRange::R100_200K, "IDs 100k-200k");
+            UI::SameLine();
+            DrawIdRangeFilter(IdRange::R200_300K, "IDs 200k-300k");
 
-        UI::SameLine();
-        UI::SetNextItemWidth(80);
-        IdFilter = TrackedInputText("ID starts with", IdFilter);
+            UI::SameLine();
+            ShouldPassAtCheck = TrackedCheckbox("AT isn't plugin", ShouldPassAtCheck);
+            AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.", 600);
 
-        UI::SetNextItemWidth(300);
-        AuthorFilter = TrackedInputText("Author", AuthorFilter);
-        UI::SameLine();
-        UI::SetNextItemWidth(300);
-        MapNameFilter = TrackedInputText("Map Name", MapNameFilter);
+            UI::SameLine();
+            UI::SetNextItemWidth(80);
+            IdFilter = TrackedInputText("ID starts with", IdFilter);
 
-        UI::AlignTextToFramePadding();
-        UI::Text("AT (seconds):");
-        AddSimpleTooltip("Filter by AT length");
-        UI::SameLine();
-        UI::Text("Min: ");
-        UI::SameLine();
-        UI::SetNextItemWidth(70);
-        LengthFilterMinMs = 1000 * TrackedInputInt("##LengthMin", int(LengthFilterMinMs / 1000), 0);
-        AddSimpleTooltip("Leave at 0 to not filter by max length.");
-        UI::SameLine();
-        UI::Text("Max: ");
-        UI::SameLine();
-        UI::SetNextItemWidth(70);
-        LengthFilterMaxMs = 1000 * TrackedInputInt("##LengthMax", int(LengthFilterMaxMs / 1000), 0);
-        AddSimpleTooltip("Leave at 0 to not filter by max length.");
+            UI::SameLine();
+            ShowOnlyNotes = TrackedCheckbox("Only with notes", ShowOnlyNotes);
+        }
 
-        UI::SameLine();
-        UI::Text("          ");
-        UI::SameLine();
+        {
+            UI::FieldName("Author Name:", LabelSize);
+            UI::SetNextItemWidth(InputsSize);
+            AuthorFilter = TrackedInputText("##Author", AuthorFilter);
 
-        UI::AlignTextToFramePadding();
-        bool fromChanged, beforeChanged;
-        UI::Text("Uploaded From: ");
-        UI::SameLine();
-        DrawUploadedDateFilter("UploadedFrom", UploadedFrom);
-        UI::SameLine();
-        UI::Text(" To: ");
-        UI::SameLine();
-        DrawUploadedDateFilter("UploadedBefore", UploadedBefore);
+            UI::SameLine();
+            UI::SetCursorPos(UI::GetCursorPos() + vec2(50, 0));
 
-        UI::SetNextItemWidth(300);
-        DrawTagsFilter("Tags", TagsFilter);
-        UI::SameLine();
-        UI::SetNextItemWidth(300);
-        DrawTagsFilter("Exclude Tags", ExcludeTagsFilter);
+            UI::FieldName("Map Name:", LabelSize);
+            UI::SetNextItemWidth(InputsSize);
+            MapNameFilter = TrackedInputText("##MapName", MapNameFilter);
+        }
+
+        {
+            {
+                UI::FieldName("AT (seconds):", LabelSize);
+                AddSimpleTooltip("Filter by AT length");
+                UI::FieldName("Min:", 50);
+                UI::SetNextItemWidth(70);
+                LengthFilterMinMs = 1000 * TrackedInputInt("##LengthMin", int(LengthFilterMinMs / 1000), 0);
+                AddSimpleTooltip("Leave at 0 to not filter by max length.");
+
+                UI::SameLine();
+                UI::SetCursorPos(UI::GetCursorPos() + vec2(50, 0));
+
+                UI::FieldName("Max:", 50);
+                UI::SetNextItemWidth(70);
+                LengthFilterMaxMs = 1000 * TrackedInputInt("##LengthMax", int(LengthFilterMaxMs / 1000), 0);
+                AddSimpleTooltip("Leave at 0 to not filter by max length.");
+            }
+
+            UI::SameLine();
+            UI::SetCursorPos(UI::GetCursorPos() + vec2(50, 0));
+
+            {
+                UI::FieldName("Uploaded:", LabelSize);
+                bool fromChanged, beforeChanged;
+                UI::FieldName("From:", 50);
+                DrawUploadedDateFilter("UploadedFrom", UploadedFrom);
+
+                UI::SameLine();
+                UI::SetCursorPos(UI::GetCursorPos() + vec2(40, 0));
+
+                UI::FieldName("To:", 50);
+                UI::SameLine();
+                DrawUploadedDateFilter("UploadedBefore", UploadedBefore);
+            }
+        }
+
+        {
+            UI::FieldName("Tags: ", 54);
+            TagsFilterStrict = TrackedCheckbox("AND", TagsFilterStrict);
+            AddSimpleTooltip("If checked, map has to include all of the selected tags.\nOtherwise, map must have at least one of the selected tags.", 800);
+            UI::SameLine();
+            UI::SetNextItemWidth(InputsSize - 32);
+            DrawTagsFilter("##Tags", TagsFilter, TagsFilterStrict ? 3 : 0);
+
+            UI::SameLine();
+            UI::SetCursorPos(UI::GetCursorPos() + vec2(50, 0));
+
+            UI::FieldName("Exclude Tags: ", LabelSize);
+            UI::SetNextItemWidth(InputsSize - 32);
+            DrawTagsFilter("##ExcludeTags", ExcludeTagsFilter);
+        }
 
         if (includeBeatenFilters) {
             BeatenByFilter = TrackedInputText("Beaten By", BeatenByFilter);
         }
+
         // UI::SameLine();
         // ReverseOrder = UI::Checkbox("Reverse Order", ReverseOrder);
     }

@@ -14,7 +14,7 @@ void UI_Main_Render() {
         startnew(GetUnbeatenATsInfo);
     }
 
-    UI::SetNextWindowSize(1050, 500, UI::Cond::Appearing);
+    UI::SetNextWindowSize(1150, 500, UI::Cond::Appearing);
     if (UI::Begin(MenuTitle, g_showWindow, UI::WindowFlags::NoCollapse)) {
         if (g_UnbeatenATs is null || !g_UnbeatenATs.LoadingDone) {
             UI::Text("Loading Unbeaten ATs...");
@@ -95,6 +95,7 @@ class ListMapsTab : Tab {
             }
         }
 
+        UI::SameLine();
         g_UnbeatenATs.DrawFilters();
 
         if (UI::BeginChild("unbeaten-ats-table")) {
@@ -153,6 +154,7 @@ class ListHiddenMapsTab : Tab {
         UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.hiddenMaps.Length + " (Filtered: "+g_UnbeatenATs.filteredHiddenMaps.Length+")");
         DrawRefreshButton();
 
+        UI::SameLine();
         g_UnbeatenATs.DrawFilters();
 
         if (UI::BeginChild("unbeaten-ats-table")) {
