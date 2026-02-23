@@ -37,6 +37,7 @@ TabGroup@ CreateRootTabGroup() {
     RecentlyBeatenMapsTab(root);
     LeaderboardTab(root);
     ListHiddenMapsTab(root);
+    // UnbeatenATRoomsTab(root);
     // LookupMapTab(root);
     AboutTab(root);
     TogetherTab(root);
@@ -99,7 +100,7 @@ class ListMapsTab : Tab {
         g_UnbeatenATs.DrawFilters();
 
         if (UI::BeginChild("unbeaten-ats-table")) {
-            if (UI::BeginTable("unbeaten-ats", g_isUserTrusted ? 11 : 10, tableFlags)) {
+            if (UI::BeginTable("unbeaten-ats", 11, tableFlags)) {
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
                 UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
                 UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
@@ -108,9 +109,9 @@ class ListMapsTab : Tab {
                 UI::TableSetupColumn("AT", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
-                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
-                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 85);
-                if (g_isUserTrusted) UI::TableSetupColumn("Admin", UI::TableColumnFlags::WidthFixed, 50);
+                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 46);
+                UI::TableSetupColumn("Links (deprecated)", UI::TableColumnFlags::WidthFixed, 85);
+                UI::TableSetupColumn("More", UI::TableColumnFlags::WidthFixed, 40);
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
 
@@ -167,8 +168,8 @@ class ListHiddenMapsTab : Tab {
                 UI::TableSetupColumn("AT", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 75);
                 UI::TableSetupColumn("Missing Time", UI::TableColumnFlags::WidthFixed, 75);
-                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 60);
-                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 85);
+                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 46);
+                UI::TableSetupColumn("Links (deprecated)", UI::TableColumnFlags::WidthFixed, 85);
                 UI::TableSetupColumn("Reason", UI::TableColumnFlags::WidthFixed, 50);
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
@@ -236,7 +237,7 @@ class RecentlyBeatenMapsTab : ListMapsTab {
         }
 
         if (UI::BeginChild("unbeaten-ats-table")) {
-            if (UI::BeginTable("unbeaten-ats", 9, tableFlags)) {
+            if (UI::BeginTable("unbeaten-ats", 10, tableFlags)) {
 
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 50);
                 UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
@@ -247,8 +248,9 @@ class RecentlyBeatenMapsTab : ListMapsTab {
                 UI::TableSetupColumn("WR", UI::TableColumnFlags::WidthFixed, 70);
                 UI::TableSetupColumn("Beaten By", UI::TableColumnFlags::WidthFixed, 120);
                 // UI::TableSetupColumn("Beaten Ago", UI::TableColumnFlags::WidthFixed, 70);
-                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 70);
-                UI::TableSetupColumn("Links", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 46);
+                UI::TableSetupColumn("Links (deprecated)", UI::TableColumnFlags::WidthFixed, 100);
+                UI::TableSetupColumn("More", UI::TableColumnFlags::WidthFixed, 40);
 
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
@@ -408,6 +410,20 @@ class LeaderboardTab : Tab {
 
             UI::EndTable();
         }
+    }
+}
+
+class UnbeatenATRoomsTab : Tab {
+    UnbeatenATRoomsTab(TabGroup@ parent) {
+        super(parent, "Unbeaten AT Rooms", "");
+    }
+
+    void DrawInner() override {
+        UI::AlignTextToFramePadding();
+        UI::Text("Unbeaten AT Rooms:");
+        UI::Separator();
+        UI::AlignTextToFramePadding();
+        UI::Text("Coming soon...");
     }
 }
 

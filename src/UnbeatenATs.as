@@ -620,6 +620,16 @@ class ReportedData {
     }
 }
 
+class ValidationData {
+    bool ValidationUploaded;
+    string ValidationUrl;
+
+    ValidationData(bool validationUploaded, const string &in validationUrl) {
+        ValidationUploaded = validationUploaded;
+        ValidationUrl = validationUrl;
+    }
+}
+
 class UnbeatenATMap {
     Json::Value@ row;
     string[]@ keys;
@@ -642,6 +652,7 @@ class UnbeatenATMap {
     string TagNames;
     int ATBeatenTimestamp;
     string ATBeatenUser;
+    ValidationData@ Validation = null;
 
     bool hasPlayed = false;
     bool isBeaten = false;
@@ -670,6 +681,7 @@ class UnbeatenATMap {
         if (HasKey('AtSetByPlugin')) AtSetByPlugin = GetData('AtSetByPlugin', AtSetByPlugin);
         if (HasKey('Reported')) Reported = GetReportedData();
         if (HasKey('UploadedTimestamp')) UploadedTimestamp = GetData('UploadedTimestamp', UploadedTimestamp);
+        if (HasKey('Validation')) @Validation = GetValidationData();
         SetTags();
         if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
             QueueAuthorLoginCache(AuthorLogin);
@@ -684,6 +696,11 @@ class UnbeatenATMap {
             QueueWsidNameCache(ATBeatenUser);
         }
         hasPlayed = HasPlayedTrack(TrackID);
+    }
+
+    void LoadValidationGhost() {
+        if (Validation is null || Validation.ValidationUrl == "") return;
+        LoadGhostFromUrl(TrackID, Validation.ValidationUrl, Validation.ValidationUrl);
     }
 
     string CSVHeader() {
@@ -757,6 +774,11 @@ class UnbeatenATMap {
         return ret;
     }
 
+    ValidationData@ GetValidationData() {
+        const auto row = GetData('Validation');
+        return ValidationData(row[0], row[1]);
+    }
+
     string GetData(const string &in name, const string &in _) {
         auto j = GetData(name);
         // print("GetDataStr: " + Json::Write(j));
@@ -803,19 +825,6 @@ class UnbeatenATMap {
         DrawWRCols();
         DrawTableEndCols();
 
-        if (g_isUserTrusted) {
-            UI::TableNextColumn();
-            if(UI::BeginMenu("Admin##" + TrackID)) {
-                if (UI::MenuItem("Add/Replace Note##" + TrackID)) {
-                    OnReportMapClicked(this);
-                }
-                if (UI::MenuItem("Remove my Note##" + TrackID)) {
-                    startnew(CoroutineFunc(RemoveMyCommunityNote));
-                }
-                UI::EndMenu();
-            }
-        }
-
         UI::PopStyleVar();
     }
 
@@ -848,7 +857,24 @@ class UnbeatenATMap {
 
     void DrawATCol() {
         UI::TableNextColumn();
-        if (AtSetByPlugin) {
+        if (Validation !is null && Validation.ValidationUploaded) {
+            if (Validation.ValidationUrl != "") {
+                UI::PushStyleColor(UI::Col::Button, vec4(1.0, 1.0, 1.0, 0.1));
+                if (UI::Button("\\$0f0" + Time::Format(AuthorTime) + "##" + TrackID)) {
+                    startnew(CoroutineFunc(this.LoadValidationGhost));
+                }
+                AddSimpleTooltip("Load AT ghost (you must open the map in solo)", 700);
+                UI::PopStyleColor();
+            } else {
+                UI::Text("\\$0f0" + Time::Format(AuthorTime));
+            }
+            if (Validation.ValidationUrl != "") {
+                AddSimpleTooltip("Author uploaded validation replay proving map was actually driven legit.", 700);
+            } else {
+                AddSimpleTooltip("Author uploaded validation replay proving map was actually driven legit.\nHowever, they decided to not make ghost public.", 700);
+            }
+            AddSimpleTooltip("\\$fc0PLEASE NOTE, even though replay was validated using real physics engine:\n* physics could've changed since potentially making map impossible\n* drove replay on previous version of the map and blocked every path other then what they drove in validation.\n* run trackmania in slowmotion to validate\nNonetheless, this is the most accurate check we have at this point, superseding metadata based check.", 700);
+        } else if (AtSetByPlugin) {
             UI::Text("\\$ff0" + Time::Format(AuthorTime));
             AddSimpleTooltip("This AT was likely set by a plugin. This doesnt mean AT is impossible/cheated.");
         } else {
@@ -928,6 +954,38 @@ class UnbeatenATMap {
         // links
         UI::TableNextColumn();
         DrawLinkButtons();
+
+        UI::TableNextColumn();
+        UI::AlignTextToFramePadding();
+        if(UI::BeginMenu("More##" + TrackID)) {
+            // tmx + tm.io
+            if (UI::MenuItem("Open on TM.io##" + TrackID)) {
+                OpenBrowserURL("https://trackmania.io/#/leaderboard/"+TrackUID+"?utm_source=unbeaten-ats-plugin");
+            }
+            if (UI::MenuItem("Open on TMX##" + TrackID)) {
+                OpenBrowserURL("https://trackmania.exchange/maps/"+TrackID+"?utm_source=unbeaten-ats-plugin");
+            }
+            if (g_isUserTrusted) {
+                if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
+                    if (UI::MenuItem("Upload Validation Replay##" + TrackID)) {
+                        OpenBrowserURL("https://map-monitor.teggot.name/static/upload-replay.html?mapId=" + TrackID);
+                    }
+                    UI::BeginDisabled(Validation is null || Validation.ValidationUrl == "");
+                    if (UI::MenuItem("Copy validation ghost URL##" + TrackID)) {
+                        IO::SetClipboard(Validation.ValidationUrl);
+                    }
+                    UI::EndDisabled();
+                }
+                if (UI::MenuItem("Add/Replace Note##" + TrackID)) {
+                    OnReportMapClicked(this);
+                }
+                if (UI::MenuItem("Remove my Note##" + TrackID)) {
+                    startnew(CoroutineFunc(RemoveMyCommunityNote));
+                }
+            }
+            UI::EndMenu();
+        }
+
     }
 
     void DrawLinkButtons() {
@@ -953,6 +1011,34 @@ class UnbeatenATMap {
             ShowSimpleTooltip(msg, 700);
         }
     }
+}
+
+dictionary g_loadingGhosts = {};
+
+void LoadGhostFromUrl(const int trackId, const string &in filename, const string &in url) {
+    if (g_loadingGhosts.Exists(url)) {
+        return;
+    }
+    Notify("Loading ghost from for " + trackId);
+    g_loadingGhosts[url] = true;
+    try {
+        auto ps = cast<CSmArenaRulesMode>(GetApp().PlaygroundScript);
+        auto dfm = ps.DataFileMgr;
+        auto gm = ps.GhostMgr;
+        auto task = dfm.Ghost_Download(filename, url);
+        WaitAndClearTaskLater(task, dfm);
+        if (task.HasFailed || !task.HasSucceeded) {
+            NotifyError("Failed to download ghost :shrug:");
+            g_loadingGhosts.Delete(url);
+            return;
+        }
+        auto instId = gm.Ghost_Add(task.Ghost, true);
+    } catch {
+        warn("exception loading a ghost; exception: " + getExceptionInfo());
+        NotifyError("Loading ghost failed for " + trackId + ".\nProbably because you are not on the map or on a server.");
+    }
+    NotifySuccess("Ghost loaded for " + trackId);
+    g_loadingGhosts.Delete(url);
 }
 
 Json::Value@ g_TmxTags = null;

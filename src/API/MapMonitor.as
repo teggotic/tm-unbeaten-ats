@@ -3,7 +3,7 @@ enum UnbeatenATsAPI {
 }
 
 [Setting hidden]
-UnbeatenATsAPI S_API_Choice = UnbeatenATsAPI::XertroVs_API;
+UnbeatenATsAPI S_API_Choice = UnbeatenATsAPI::Teggots_API;
 
 [SettingsTab name="API" order=0]
 void RenderAPISettings() {
