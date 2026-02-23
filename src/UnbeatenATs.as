@@ -1033,11 +1033,11 @@ void LoadGhostFromUrl(const int trackId, const string &in filename, const string
             return;
         }
         auto instId = gm.Ghost_Add(task.Ghost, true);
+        NotifySuccess("Ghost loaded for " + trackId);
     } catch {
         warn("exception loading a ghost; exception: " + getExceptionInfo());
         NotifyError("Loading ghost failed for " + trackId + ".\nProbably because you are not on the map or on a server.");
     }
-    NotifySuccess("Ghost loaded for " + trackId);
     g_loadingGhosts.Delete(url);
 }
 
