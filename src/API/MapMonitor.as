@@ -103,7 +103,7 @@ namespace MapMonitor {
     }
 
     string MapUrl(int TrackID) {
-        return MM_API_ROOT + "/maps/download/" + TrackID;
+        return MM_API_ROOT + "/maps/download/" + TrackID + "?timestamp=" + Time::Now;
     }
 
     bool g_mmAuthTokenIsLoading = false;

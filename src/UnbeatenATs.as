@@ -138,6 +138,11 @@ class UnbeatenATsData {
         if (UI::Button("Hide Filters")) {
             hiddenFilters = true;
         }
+        UI::SameLine();
+        if (UI::ButtonColored("Reset filters", 0.0)) {
+            filters.Reset();
+            filters.MarkChanged();
+        }
 
         filters.Draw();
         if (filters._changed) {
@@ -213,25 +218,25 @@ class UploadedDateFilter {
 }
 
 class UnbeatenATFilters {
-    IdRange FilterIdRange = IdRange::None;
-    bool ReverseOrder = false;
-    bool FilterNbPlayers = false;
-    bool ShouldPassAtCheck = false;
-    int NbPlayers = 0;
-    uint NbPlayersOrd = Ord::LTE;
-    int LengthFilterMinMs = 0;
-    int LengthFilterMaxMs = -1;
+    IdRange FilterIdRange;
+    bool ReverseOrder;
+    bool FilterNbPlayers;
+    bool ShouldPassAtCheck;
+    int NbPlayers;
+    uint NbPlayersOrd;
+    int LengthFilterMinMs;
+    int LengthFilterMaxMs;
     UploadedDateFilter@ UploadedFrom;
     UploadedDateFilter@ UploadedBefore;
-    NotesFilter NotesFilter = NotesFilter::None;
-    string IdFilter = "";
-    string AuthorFilter = "";
-    string MapNameFilter = "";
-    string BeatenByFilter = "";
-    int[] TagsFilter = {};
-    bool TagsFilterStrict = false;
-    int[] ExcludeTagsFilter = {};
-    bool ShowOnlyNotes = false;
+    NotesFilter NotesFilter;
+    string IdFilter;
+    string AuthorFilter;
+    string MapNameFilter;
+    string BeatenByFilter;
+    int[] TagsFilter;
+    bool TagsFilterStrict;
+    int[] ExcludeTagsFilter;
+    bool ShowOnlyNotes;
 
     bool _changed = false;
     void MarkChanged() {
@@ -239,8 +244,29 @@ class UnbeatenATFilters {
     }
 
     UnbeatenATFilters() {
+        Reset();
+    }
+
+    void Reset() {
+        FilterIdRange = IdRange::None;
+        ReverseOrder = false;
+        FilterNbPlayers = false;
+        ShouldPassAtCheck = false;
+        NbPlayers = 0;
+        NbPlayersOrd = Ord::LTE;
+        LengthFilterMinMs = 0;
+        LengthFilterMaxMs = -1;
         @UploadedFrom = UploadedDateFilter();
         @UploadedBefore = UploadedDateFilter();
+        NotesFilter = NotesFilter::None;
+        IdFilter = "";
+        AuthorFilter = "";
+        MapNameFilter = "";
+        BeatenByFilter = "";
+        TagsFilter = {};
+        TagsFilterStrict = false;
+        ExcludeTagsFilter = {};
+        ShowOnlyNotes = false;
     }
 
     bool Matches(const UnbeatenATMap@ map) {
@@ -266,7 +292,9 @@ class UnbeatenATFilters {
         }
         if (map.AuthorTime < LengthFilterMinMs) return false;
         if (LengthFilterMaxMs > 0 && map.AuthorTime > LengthFilterMaxMs) return false;
-        if (ShouldPassAtCheck && map.AtSetByPlugin) return false;
+        if (ShouldPassAtCheck && map.AtSetByPlugin) {
+            if (map.Validation is null || !map.Validation.ValidationUploaded) return false;
+        }
         if (FilterNbPlayers) {
             if (NbPlayersOrd == Ord::EQ && NbPlayers != map.NbPlayers) return false;
             if (NbPlayersOrd == Ord::LT && NbPlayers >= map.NbPlayers) return false;
@@ -428,7 +456,7 @@ class UnbeatenATFilters {
 
             UI::SameLine();
             ShouldPassAtCheck = TrackedCheckbox("AT isn't plugin", ShouldPassAtCheck);
-            AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.", 600);
+            AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.\nAlso shows maps where validation replay was submitted", 600);
 
             UI::SameLine();
             UI::SetNextItemWidth(80);
@@ -846,17 +874,22 @@ class UnbeatenATMap {
 
         DrawATCol();
         DrawWRCols();
-        DrawTableEndCols();
 
         UI::TableNextColumn();
         UI::Text("\\$f60" + Icons::ExclamationTriangle);
         AddSimpleTooltip(Reason);
+
+        DrawTableEndCols();
 
         UI::PopStyleVar();
     }
 
     void DrawATCol() {
         UI::TableNextColumn();
+        DrawATTime();
+    }
+
+    void DrawATTime() {
         if (Validation !is null && Validation.ValidationUploaded) {
             if (Validation.ValidationUrl != "") {
                 UI::PushStyleColor(UI::Col::Button, vec4(1.0, 1.0, 1.0, 0.1));
@@ -868,18 +901,22 @@ class UnbeatenATMap {
             } else {
                 UI::Text("\\$0f0" + Time::Format(AuthorTime));
             }
-            if (Validation.ValidationUrl != "") {
-                AddSimpleTooltip("Author uploaded validation replay proving map was actually driven legit.", 700);
-            } else {
-                AddSimpleTooltip("Author uploaded validation replay proving map was actually driven legit.\nHowever, they decided to not make ghost public.", 700);
-            }
-            AddSimpleTooltip("\\$fc0PLEASE NOTE, even though replay was validated using real physics engine:\n* physics could've changed since potentially making map impossible\n* drove replay on previous version of the map and blocked every path other then what they drove in validation.\n* run trackmania in slowmotion to validate\nNonetheless, this is the most accurate check we have at this point, superseding metadata based check.", 700);
+            DrawValidationGhostWarning(Validation.ValidationUrl);
         } else if (AtSetByPlugin) {
             UI::Text("\\$ff0" + Time::Format(AuthorTime));
             AddSimpleTooltip("This AT was likely set by a plugin. This doesnt mean AT is impossible/cheated.");
         } else {
             UI::Text(Time::Format(AuthorTime));
         }
+    }
+
+    void DrawValidationGhostWarning(const string &in url) {
+        if (url != "") {
+            AddSimpleTooltip("Author uploaded validation replay proving map was actually driven legit.", 700);
+        } else {
+            AddSimpleTooltip("Author uploaded validation replay proving map was actually driven legit.\nHowever, they decided to not make ghost public.", 700);
+        }
+        AddSimpleTooltip("\\$fc0PLEASE NOTE, even though replay was validated using real physics engine:\n* physics could've changed since potentially making map impossible\n* drove replay on previous version of the map and blocked every path other then what they drove in validation.\n* run trackmania in slowmotion to validate\nNonetheless, this is the most accurate check we have at this point, superseding metadata based check.", 700);
     }
 
     void DrawWRCols() {

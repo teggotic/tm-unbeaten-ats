@@ -14,7 +14,7 @@ void UI_Main_Render() {
         startnew(GetUnbeatenATsInfo);
     }
 
-    UI::SetNextWindowSize(1150, 500, UI::Cond::Appearing);
+    UI::SetNextWindowSize(1150, 600, UI::Cond::Appearing);
     if (UI::Begin(MenuTitle, g_showWindow, UI::WindowFlags::NoCollapse)) {
         if (g_UnbeatenATs is null || !g_UnbeatenATs.LoadingDone) {
             UI::Text("Loading Unbeaten ATs...");
@@ -159,7 +159,7 @@ class ListHiddenMapsTab : Tab {
         g_UnbeatenATs.DrawFilters();
 
         if (UI::BeginChild("unbeaten-ats-table")) {
-            if (UI::BeginTable("unbeaten-ats", 11, tableFlags)) {
+            if (UI::BeginTable("unbeaten-ats", 12, tableFlags)) {
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
                 UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
                 UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
@@ -171,6 +171,7 @@ class ListHiddenMapsTab : Tab {
                 UI::TableSetupColumn("# Players", UI::TableColumnFlags::WidthFixed, 46);
                 UI::TableSetupColumn("Links (deprecated)", UI::TableColumnFlags::WidthFixed, 85);
                 UI::TableSetupColumn("Reason", UI::TableColumnFlags::WidthFixed, 50);
+                UI::TableSetupColumn("More", UI::TableColumnFlags::WidthFixed, 40);
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
 
@@ -282,12 +283,11 @@ class PlayRandomTab : Tab {
 
     void DrawInner() override {
         UI::AlignTextToFramePadding();
-        UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length);
+        UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
         DrawRefreshButton();
         UI::Separator();
         g_UnbeatenATs.DrawFilters();
         UI::AlignTextToFramePadding();
-        UI::Text("Choose from " + g_UnbeatenATs.filteredMaps.Length + " maps.");
 
         if (chosen is null) {
             if (UI::Button("Pick a Random Map")) {
@@ -306,12 +306,10 @@ class PlayRandomTab : Tab {
             UI::Text("Mapper: " + chosen.AuthorDisplayName);
             UI::Text("TMX: " + chosen.TrackID);
             UI::Text("Tags: " + chosen.TagNames);
-            if (chosen.AtSetByPlugin) {
-                UI::Text("AT: " + "\\$ff0" + chosen.ATFormatted);
-                AddSimpleTooltip("This AT was likely set by a plugin.\nThis doesnt mean AT is impossible/cheated.");
-            } else {
-                UI::Text("AT: " + chosen.ATFormatted);
-            }
+            UI::AlignTextToFramePadding();
+            UI::Text("AT: ");
+            UI::SameLine();
+            chosen.DrawATTime();
             if (chosen.WR > 0)
                 UI::Text("WR: " + Time::Format(chosen.WR) + " (+"+Time::Format(chosen.WR - chosen.AuthorTime)+")");
             else
