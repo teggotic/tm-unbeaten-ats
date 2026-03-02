@@ -1002,17 +1002,17 @@ class UnbeatenATMap {
             if (UI::MenuItem("Open on TMX##" + TrackID)) {
                 OpenBrowserURL("https://trackmania.exchange/maps/"+TrackID+"?utm_source=unbeaten-ats-plugin");
             }
-            if (g_isUserTrusted) {
-                if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
-                    if (UI::MenuItem("Upload Validation Replay##" + TrackID)) {
-                        OpenBrowserURL("https://map-monitor.teggot.name/static/upload-replay.html?mapId=" + TrackID);
-                    }
-                    UI::BeginDisabled(Validation is null || Validation.ValidationUrl == "");
-                    if (UI::MenuItem("Copy validation ghost URL##" + TrackID)) {
-                        IO::SetClipboard(Validation.ValidationUrl);
-                    }
-                    UI::EndDisabled();
+            if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
+                if (UI::MenuItem("Upload Validation Replay##" + TrackID)) {
+                    OpenBrowserURL("https://map-monitor.teggot.name/static/upload-replay.html?mapId=" + TrackID);
                 }
+                UI::BeginDisabled(Validation is null || Validation.ValidationUrl == "");
+                if (UI::MenuItem("Copy validation ghost URL##" + TrackID)) {
+                    IO::SetClipboard(Validation.ValidationUrl);
+                }
+                UI::EndDisabled();
+            }
+            if (g_isUserTrusted) {
                 if (UI::MenuItem("Add/Replace Note##" + TrackID)) {
                     OnReportMapClicked(this);
                 }
