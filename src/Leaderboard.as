@@ -1,6 +1,7 @@
 bool updatingLB = false;
 
 void GetUnbeatenLeaderboard() {
+    if (S_API_Choice != UnbeatenATsAPI::XertroVs_API) return;
     if (updatingLB) return;
     updatingLB = true;
     await(startnew(_GetUnbeatenLeaderboard));

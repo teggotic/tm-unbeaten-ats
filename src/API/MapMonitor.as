@@ -8,7 +8,7 @@ UnbeatenATsAPI S_API_Choice = UnbeatenATsAPI::Teggots_API;
 [SettingsTab name="API" order=0]
 void RenderAPISettings() {
     if (UI::Button("Reset to default")) {
-        S_API_Choice = UnbeatenATsAPI::XertroVs_API;
+        S_API_Choice = UnbeatenATsAPI::Teggots_API;
         RefreshAPI();
     }
 
@@ -27,7 +27,9 @@ void RenderAPISettings() {
         UI::EndCombo();
     }
     UI::Text("You should probably use Teggots API because XervoVs API is not updating unbeaten ats from the start of 2026");
-    UI::Text("Warning: Teggots API is highly experimental and does not have all the features of XertroVs API");
+    if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
+        UI::TextWrapped("\\$f60Warning: XertroVs API is fully deprecated, and most new features are missing.\nWe still try to make sure plugin works with XertroVs API, but there is almost no reason to use it.");
+    }
 }
 
 void RefreshAPI() {

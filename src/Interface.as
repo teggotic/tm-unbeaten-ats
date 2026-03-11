@@ -45,6 +45,12 @@ TabGroup@ CreateRootTabGroup() {
 }
 
 
+void DrawOldAPIWarning() {
+    if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
+        UI::TextWrapped("\\$f60" + Icons::ExclamationTriangle + "You are using deprecated XertroVs API, which is currently not updating maps. You should probably switch to Teggots API in settings, which has up to date list of maps, but some features are not supported.");
+    }
+}
+
 // class OverviewTab : Tab {
 //     OverviewTab(TabGroup@ parent) {
 //         super(parent, "Overview", "");
@@ -82,9 +88,7 @@ class ListMapsTab : Tab {
 
     void DrawTable() {
         UI::AlignTextToFramePadding();
-        if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
-            UI::TextWrapped("\\$f60" + Icons::ExclamationTriangle + "You are using XertroVs API, which is currently not updating maps. You should probably switch to Teggots API in settings, which has up to date list of maps, but some features are not supported." + "\\$f80");
-        }
+        DrawOldAPIWarning();
 
         UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
         DrawRefreshButton();
@@ -152,6 +156,7 @@ class ListHiddenMapsTab : Tab {
 
     void DrawTable() {
         UI::AlignTextToFramePadding();
+        DrawOldAPIWarning();
         UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.hiddenMaps.Length + " (Filtered: "+g_UnbeatenATs.filteredHiddenMaps.Length+")");
         DrawRefreshButton();
 
@@ -201,7 +206,7 @@ void DrawRefreshButton() {
 
 void DrawLbRefreshButton() {
     UI::SameLine();
-    UI::BeginDisabled(g_UnbeatenATsLeaderboard.LoadingDoneTime + (5 * 60 * 1000) > int(Time::Now));
+    UI::BeginDisabled(S_API_Choice == UnbeatenATsAPI::Teggots_API || g_UnbeatenATsLeaderboard.LoadingDoneTime + (5 * 60 * 1000) > int(Time::Now));
     if (UI::Button("Refresh")) {
         g_UnbeatenATsLeaderboard.StartRefreshData();
     }
@@ -212,6 +217,8 @@ void DrawLbRefreshButton() {
 enum RecentlyBeatenList {
     All,
     First_100k_Only,
+    First_200k_Only,
+    First_300k_Only,
     XXX_Last
 }
 
@@ -225,6 +232,7 @@ class RecentlyBeatenMapsTab : ListMapsTab {
 
     void DrawTable() override {
         UI::AlignTextToFramePadding();
+        DrawOldAPIWarning();
         UI::Text("Recently Beaten ATs:");
         DrawRefreshButton();
 
@@ -256,9 +264,25 @@ class RecentlyBeatenMapsTab : ListMapsTab {
                 UI::TableSetupScrollFreeze(0, 1);
                 UI::TableHeadersRow();
 
-                auto@ theList = showList == RecentlyBeatenList::All
-                    ? g_UnbeatenATs.recentlyBeaten
-                    : g_UnbeatenATs.recentlyBeaten100k;
+                UnbeatenATMap@[]@ theList;
+                switch (showList) {
+                    case RecentlyBeatenList::All: {
+                        @theList = g_UnbeatenATs.recentlyBeaten;
+                        break;
+                    }
+                    case RecentlyBeatenList::First_100k_Only: {
+                        @theList = g_UnbeatenATs.recentlyBeaten100k;
+                        break;
+                    }
+                    case RecentlyBeatenList::First_200k_Only: {
+                        @theList = g_UnbeatenATs.recentlyBeaten200k;
+                        break;
+                    }
+                    case RecentlyBeatenList::First_300k_Only: {
+                        @theList = g_UnbeatenATs.recentlyBeaten300k;
+                        break;
+                    }
+                }
 
                 UI::ListClipper clip(theList.Length);
                 while (clip.Step()) {
@@ -283,6 +307,7 @@ class PlayRandomTab : Tab {
 
     void DrawInner() override {
         UI::AlignTextToFramePadding();
+        DrawOldAPIWarning();
         UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
         DrawRefreshButton();
         UI::Separator();
@@ -317,6 +342,10 @@ class PlayRandomTab : Tab {
             UI::Text("# Players: " + chosen.NbPlayers);
             if (UI::Button("Play Now")) {
                 startnew(CoroutineFunc(chosen.OnClickPlayMapCoro));
+            }
+            UI::SameLine();
+            if (UI::ButtonColored("Open in editor", 0.6)) {
+                startnew(CoroutineFunc(chosen.OnClickEditMapCoro));
             }
             UI::SameLine();
             if (UI::ButtonColored("Reroll", 0.3)) {
@@ -355,6 +384,14 @@ class LeaderboardTab : Tab {
     }
 
     void DrawInner() override {
+        DrawOldAPIWarning();
+        if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
+            UI::TextWrapped("\\$f60NOTE: Leaderboard is not supported on Teggots API");
+        }
+        if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
+            UI::TextWrapped("\\$f60NOTE: Leaderboard is not supported on Teggots API.\nCurrently, there are no plans to reimplement it, but maybe that will change in the future.");
+            return;
+        }
         if (g_UnbeatenATsLeaderboard is null) {
             startnew(GetUnbeatenLeaderboard);
             UI::Text("Loading Unbeaten ATs Leaderboard...");
@@ -367,6 +404,7 @@ class LeaderboardTab : Tab {
             return;
         }
 
+        UI::AlignTextToFramePadding();
         UI::Markdown("## Unbeaten ATs Leaderboard");
         UI::AlignTextToFramePadding();
         UI::Text("Number of Players: " + g_UnbeatenATsLeaderboard.nbPlayers);

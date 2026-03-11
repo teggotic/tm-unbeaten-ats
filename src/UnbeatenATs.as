@@ -34,6 +34,8 @@ class UnbeatenATsData {
 
     UnbeatenATMap@[] recentlyBeaten;
     UnbeatenATMap@[] recentlyBeaten100k;
+    UnbeatenATMap@[] recentlyBeaten200k;
+    UnbeatenATMap@[] recentlyBeaten300k;
 
     UnbeatenATsData() {
         StartRefreshData();
@@ -49,6 +51,8 @@ class UnbeatenATsData {
         filteredHiddenMaps = {};
         recentlyBeaten = {};
         recentlyBeaten100k = {};
+        recentlyBeaten200k = {};
+        recentlyBeaten300k = {};
         startnew(CoroutineFunc(this.RunInit));
         startnew(CoroutineFunc(this.RunRecentInit));
     }
@@ -112,10 +116,17 @@ class UnbeatenATsData {
             if ((i+1) % 100 == 0) yield();
         }
 
-        auto tracks100k = recentData['below100k']['tracks'];
-        for (uint i = 0; i < tracks100k.Length; i++) {
-            auto track = tracks100k[i];
-            recentlyBeaten100k.InsertLast(UnbeatenATMap(track, keysRB, true));
+        if (recentData.HasKey('below100k'))
+            IngestRecentMaps(recentData['below100k']['tracks'], recentlyBeaten100k, keysRB);
+        if (recentData.HasKey('below200k'))
+            IngestRecentMaps(recentData['below200k']['tracks'], recentlyBeaten200k, keysRB);
+        if (recentData.HasKey('below300k'))
+            IngestRecentMaps(recentData['below300k']['tracks'], recentlyBeaten300k, keysRB);
+    }
+
+    void IngestRecentMaps(Json::Value@ mapList, UnbeatenATMap@[]@ target, string[]@ keysRB) {
+        for (uint i = 0; i < mapList.Length; i++) {
+            target.InsertLast(UnbeatenATMap(mapList[i], keysRB, true));
             if ((i+1) % 100 == 0) yield();
         }
     }
@@ -205,38 +216,119 @@ enum IdRange {
     R000_100K = 1,
     R100_200K = 2,
     R200_300K = 4,
+    R300_400K = 8,
 }
 
 enum NotesFilter {
     None, OnlyWithNotes, OnlyWithoutNotes
 }
 
+funcdef void MarkChangedCB();
+
 class UploadedDateFilter {
     int64 value = -1;
     string valueStr = "";
     bool success = true;
+
+    void Validate(MarkChangedCB@ cb = null) {
+        if (valueStr == "") {
+            value = -1;
+            success = true;
+            if (cb !is null) cb();
+        } else {
+            try {
+                auto newValue = Time::ParseFormatString("%Y-%m-%d", valueStr);
+                if (newValue != value) {
+                    value = newValue;
+                    if (cb !is null) cb();
+                }
+                success = true;
+            } catch {
+                success = false;
+            }
+        }
+    }
+
+    void TryRestore(const string &in saved) {
+        try {
+            auto uploadedFrom = Json::Parse(saved);
+            valueStr = string(uploadedFrom['valueStr']);
+            Validate();
+        } catch {}
+    }
+
+    string Save() {
+        Json::Value saved = Json::Object();
+        saved["valueStr"] = valueStr;
+        return Json::Write(saved);
+    }
+}
+
+namespace FilterSettings {
+    [Setting hidden]
+    IdRange FilterIdRange;
+
+    [Setting hidden]
+    bool ReverseOrder;
+
+    [Setting hidden]
+    bool FilterNbPlayers;
+
+    [Setting hidden]
+    bool ShouldPassAtCheck;
+
+    [Setting hidden]
+    int NbPlayers;
+
+    [Setting hidden]
+    uint NbPlayersOrd;
+
+    [Setting hidden]
+    int LengthFilterMinMs;
+
+    [Setting hidden]
+    int LengthFilterMaxMs;
+
+    [Setting hidden]
+    string UploadedFromRaw;
+
+    [Setting hidden]
+    string UploadedBeforeRaw;
+
+    [Setting hidden]
+    NotesFilter NotesFilter;
+
+    [Setting hidden]
+    string IdFilter;
+
+    [Setting hidden]
+    string AuthorFilter;
+
+    [Setting hidden]
+    string MapNameFilter;
+
+    [Setting hidden]
+    string BeatenByFilter;
+
+    [Setting hidden]
+    string TagsFilterRaw;
+
+    [Setting hidden]
+    bool TagsFilterStrict;
+
+    [Setting hidden]
+    string ExcludeTagsFilterRaw;
+
+    [Setting hidden]
+    bool ShowOnlyNotes;
 }
 
 class UnbeatenATFilters {
-    IdRange FilterIdRange;
-    bool ReverseOrder;
-    bool FilterNbPlayers;
-    bool ShouldPassAtCheck;
-    int NbPlayers;
-    uint NbPlayersOrd;
-    int LengthFilterMinMs;
-    int LengthFilterMaxMs;
     UploadedDateFilter@ UploadedFrom;
     UploadedDateFilter@ UploadedBefore;
-    NotesFilter NotesFilter;
-    string IdFilter;
-    string AuthorFilter;
-    string MapNameFilter;
-    string BeatenByFilter;
+
     int[] TagsFilter;
-    bool TagsFilterStrict;
     int[] ExcludeTagsFilter;
-    bool ShowOnlyNotes;
 
     bool _changed = false;
     void MarkChanged() {
@@ -244,44 +336,97 @@ class UnbeatenATFilters {
     }
 
     UnbeatenATFilters() {
-        Reset();
+        @UploadedFrom = UploadedDateFilter();
+        UploadedFrom.TryRestore(FilterSettings::UploadedFromRaw);
+        @UploadedBefore = UploadedDateFilter();
+        UploadedBefore.TryRestore(FilterSettings::UploadedBeforeRaw);
+
+        TagsFilter = {};
+        RestoreIntArray(FilterSettings::TagsFilterRaw, TagsFilter);
+        ExcludeTagsFilter = {};
+        RestoreIntArray(FilterSettings::ExcludeTagsFilterRaw, ExcludeTagsFilter);
+    }
+
+    void RestoreIntArray(string &in saved, int[]@ &in arr) {
+        try {
+            auto arrJ = Json::Parse(saved);
+            arr.RemoveRange(0, arr.Length);
+            for (uint i = 0; i < arrJ.Length; i++) {
+                arr.InsertLast(arrJ[i]);
+            }
+        } catch {}
+    }
+
+    string ArrayToJson(int[]@ arr) {
+        Json::Value arrJ = Json::Array();
+        for (uint i = 0; i < arr.Length; i++) {
+            arrJ.Add(arr[i]);
+        }
+        return Json::Write(arrJ);
+    }
+
+    void UploadedFromChanged() {
+        MarkChanged();
+        FilterSettings::UploadedFromRaw = UploadedFrom.Save();
+    }
+
+    void UploadedBeforeChanged() {
+        MarkChanged();
+        FilterSettings::UploadedBeforeRaw = UploadedBefore.Save();
+    }
+
+    void TagsFilterChanged() {
+        trace("TagsFilterChanged");
+        MarkChanged();
+        FilterSettings::TagsFilterRaw = Json::Write(TagsFilter);
+    }
+
+    void ExcludeTagsFilterChanged() {
+        trace("ExcludeTagsFilterChanged");
+        MarkChanged();
+        FilterSettings::ExcludeTagsFilterRaw = Json::Write(ExcludeTagsFilter);
     }
 
     void Reset() {
-        FilterIdRange = IdRange::None;
-        ReverseOrder = false;
-        FilterNbPlayers = false;
-        ShouldPassAtCheck = false;
-        NbPlayers = 0;
-        NbPlayersOrd = Ord::LTE;
-        LengthFilterMinMs = 0;
-        LengthFilterMaxMs = -1;
+        FilterSettings::FilterIdRange = IdRange::None;
+        FilterSettings::ReverseOrder = false;
+        FilterSettings::FilterNbPlayers = false;
+        FilterSettings::ShouldPassAtCheck = false;
+        FilterSettings::NbPlayers = 0;
+        FilterSettings::NbPlayersOrd = Ord::LTE;
+        FilterSettings::LengthFilterMinMs = 0;
+        FilterSettings::LengthFilterMaxMs = -1;
         @UploadedFrom = UploadedDateFilter();
+        FilterSettings::UploadedFromRaw = UploadedFrom.Save();
         @UploadedBefore = UploadedDateFilter();
-        NotesFilter = NotesFilter::None;
-        IdFilter = "";
-        AuthorFilter = "";
-        MapNameFilter = "";
-        BeatenByFilter = "";
+        FilterSettings::UploadedBeforeRaw = UploadedBefore.Save();
+        FilterSettings::NotesFilter = NotesFilter::None;
+        FilterSettings::IdFilter = "";
+        FilterSettings::AuthorFilter = "";
+        FilterSettings::MapNameFilter = "";
+        FilterSettings::BeatenByFilter = "";
         TagsFilter = {};
-        TagsFilterStrict = false;
+        FilterSettings::TagsFilterRaw = ArrayToJson(TagsFilter);
+        FilterSettings::TagsFilterStrict = false;
         ExcludeTagsFilter = {};
-        ShowOnlyNotes = false;
+        FilterSettings::ExcludeTagsFilterRaw = ArrayToJson(ExcludeTagsFilter);
+        FilterSettings::ShowOnlyNotes = false;
     }
 
     bool Matches(const UnbeatenATMap@ map) {
-        if (FilterIdRange != IdRange::None) {
+        if (FilterSettings::FilterIdRange != IdRange::None) {
             bool isInRange = false;
-            if (FilterIdRange & IdRange::R000_100K > 0 &&      0 < map.TrackID && map.TrackID <= 100000) isInRange = true;
-            if (FilterIdRange & IdRange::R100_200K > 0 && 100000 < map.TrackID && map.TrackID <= 200000) isInRange = true;
-            if (FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
+            if (FilterSettings::FilterIdRange & IdRange::R000_100K > 0 &&      0 < map.TrackID && map.TrackID <= 100000) isInRange = true;
+            if (FilterSettings::FilterIdRange & IdRange::R100_200K > 0 && 100000 < map.TrackID && map.TrackID <= 200000) isInRange = true;
+            if (FilterSettings::FilterIdRange & IdRange::R200_300K > 0 && 200000 < map.TrackID && map.TrackID <= 300000) isInRange = true;
+            if (FilterSettings::FilterIdRange & IdRange::R300_400K > 0 && 300000 < map.TrackID && map.TrackID <= 400000) isInRange = true;
             if (!isInRange) return false;
         }
-        if (ShowOnlyNotes && map.Reported.Length == 0) return false;
-        if (IdFilter.Length > 0 && !tostring(map.TrackID).StartsWith(IdFilter)) return false;
+        if (FilterSettings::ShowOnlyNotes && map.Reported.Length == 0) return false;
+        if (FilterSettings::IdFilter.Length > 0 && !tostring(map.TrackID).StartsWith(FilterSettings::IdFilter)) return false;
         if (UploadedFrom.value > 0 && map.UploadedTimestamp < UploadedFrom.value) return false;
         if (UploadedBefore.value > 0 && map.UploadedTimestamp > UploadedBefore.value) return false;
-        switch (NotesFilter) {
+        switch (FilterSettings::NotesFilter) {
             case NotesFilter::None: break;
             case NotesFilter::OnlyWithNotes:
                 if (map.Reported.Length == 0) return false;
@@ -290,23 +435,23 @@ class UnbeatenATFilters {
                 if (map.Reported.Length > 0) return false;
                 break;
         }
-        if (map.AuthorTime < LengthFilterMinMs) return false;
-        if (LengthFilterMaxMs > 0 && map.AuthorTime > LengthFilterMaxMs) return false;
-        if (ShouldPassAtCheck && map.AtSetByPlugin) {
+        if (map.AuthorTime < FilterSettings::LengthFilterMinMs) return false;
+        if (FilterSettings::LengthFilterMaxMs > 0 && map.AuthorTime > FilterSettings::LengthFilterMaxMs) return false;
+        if (FilterSettings::ShouldPassAtCheck && map.AtSetByPlugin) {
             if (map.Validation is null || !map.Validation.ValidationUploaded) return false;
         }
-        if (FilterNbPlayers) {
-            if (NbPlayersOrd == Ord::EQ && NbPlayers != map.NbPlayers) return false;
-            if (NbPlayersOrd == Ord::LT && NbPlayers >= map.NbPlayers) return false;
-            if (NbPlayersOrd == Ord::GT && NbPlayers <= map.NbPlayers) return false;
-            if (NbPlayersOrd == Ord::LTE && NbPlayers > map.NbPlayers) return false;
-            if (NbPlayersOrd == Ord::GTE && NbPlayers < map.NbPlayers) return false;
+        if (FilterSettings::FilterNbPlayers) {
+            if (FilterSettings::NbPlayersOrd == Ord::EQ && FilterSettings::NbPlayers != map.NbPlayers) return false;
+            if (FilterSettings::NbPlayersOrd == Ord::LT && FilterSettings::NbPlayers >= map.NbPlayers) return false;
+            if (FilterSettings::NbPlayersOrd == Ord::GT && FilterSettings::NbPlayers <= map.NbPlayers) return false;
+            if (FilterSettings::NbPlayersOrd == Ord::LTE && FilterSettings::NbPlayers > map.NbPlayers) return false;
+            if (FilterSettings::NbPlayersOrd == Ord::GTE && FilterSettings::NbPlayers < map.NbPlayers) return false;
         }
         if (!MatchString(authorSParts, map.AuthorDisplayName)) return false;
         if (!MatchString(mapNameSParts, map.Track_Name)) return false;
         if (!MatchString(beatenBySParts, map.ATBeatenUserDisplayName)) return false;
         if (TagsFilter.Length > 0) {
-            if (TagsFilterStrict) {
+            if (FilterSettings::TagsFilterStrict) {
                 for (uint i = 0; i < TagsFilter.Length; i++) {
                     if (map.Tags.Find(TagsFilter[i]) == -1) return false;
                 }
@@ -331,16 +476,16 @@ class UnbeatenATFilters {
     }
 
     void DrawIdRangeFilter(const IdRange &in range, const string &in name) {
-        bool inRange = TrackedCheckbox(name, FilterIdRange & range > 0);
-        if (inRange == (FilterIdRange & range > 0)) return;
+        bool inRange = TrackedCheckbox(name, FilterSettings::FilterIdRange & range > 0);
+        if (inRange == (FilterSettings::FilterIdRange & range > 0)) return;
 
         if (inRange)
-            FilterIdRange = IdRange(FilterIdRange | range);
+            FilterSettings::FilterIdRange = IdRange(FilterSettings::FilterIdRange | range);
         else
-            FilterIdRange = IdRange(FilterIdRange & ~range);
+            FilterSettings::FilterIdRange = IdRange(FilterSettings::FilterIdRange & ~range);
     }
 
-    void DrawTagsFilter(const string &in comboId, int[]@ tags, int maxAllowed = 0) {
+    void DrawTagsFilter(const string &in comboId, int[]@ tags, int maxAllowed = 0, MarkChangedCB@ cb = null) {
         string label;
         if (tags.Length == 0) {
             label = "No tags selected";
@@ -366,10 +511,12 @@ class UnbeatenATFilters {
                 if (TrackedCheckbox(tagLookup[tag.ID], idx != -1)) {
                     if (idx == -1) {
                         tags.InsertLast(tag.ID);
+                        if (cb !is null) cb();
                     }
                 } else {
                     if (idx != -1) {
                         tags.RemoveAt(idx);
+                        if (cb !is null) cb();
                     }
                 }
             }
@@ -384,7 +531,7 @@ class UnbeatenATFilters {
         UI::SameLine();
         if (UI::Button("x##" + comboId)) {
             tags.RemoveRange(0, tags.Length);
-            MarkChanged();
+            if (cb !is null) cb();
         }
         UI::EndDisabled();
         UI::PopStyleColor();
@@ -396,9 +543,14 @@ class UnbeatenATFilters {
         return ret;
     }
 
-    const int TrackedInputInt(const string &in name, int &in value, int step = 1) {
+    const int TrackedInputInt(const string &in name, int &in value, bool &out changed, int step = 1) {
         auto ret = UI::InputInt(name, value, step);
-        if (ret != value) MarkChanged();
+        if (ret != value) {
+            MarkChanged();
+            changed = true;
+        } else {
+            changed = false;
+        }
         return ret;
     }
 
@@ -409,37 +561,22 @@ class UnbeatenATFilters {
         return ret;
     }
 
-    void DrawUploadedDateFilter(const string &in label, UploadedDateFilter@ &in filter) {
+    void DrawUploadedDateFilter(const string &in label, UploadedDateFilter@ &in filter, MarkChangedCB@ cb) {
         UI::SetNextItemWidth(85);
         if (!filter.success) UI::PushStyleColor(UI::Col::Text, vec4(1.0, 0.3, 0.3, 1.0));
         bool filterChanged;
         filter.valueStr = UI::InputText("##" + label, filter.valueStr, filterChanged);
         if (!filter.success) {
-            string msg = "Incorrect date format; Expected YYYY-MM-DD. Enter a valid date or clear the field.";
+            string msg = "Incorrect date format; Expected YYYY-MM-DD (e.g. 2026-01-01). Enter a valid date or clear the field.";
             if (filter.value != -1) msg += "\nUsing previous value of " + Time::FormatString("%Y-%m-%d", filter.value) + " instead.";
             AddSimpleTooltip(msg, 800);
             UI::PopStyleColor();
         } else {
-            AddSimpleTooltip("YYYY-MM-DD format. Leave blank to not filter by uploaded date.", 600);
+            AddSimpleTooltip("YYYY-MM-DD format (e.g. 2026-01-01). Leave blank to not filter by uploaded date.", 600);
         }
 
         if (filterChanged) {
-            if (filter.valueStr == "") {
-                filter.value = -1;
-                filter.success = true;
-                MarkChanged();
-            } else {
-                try {
-                    auto newValue = Time::ParseFormatString("%Y-%m-%d", filter.valueStr);
-                    if (newValue != filter.value) {
-                        filter.value = newValue;
-                        MarkChanged();
-                    }
-                    filter.success = true;
-                } catch {
-                    filter.success = false;
-                }
-            }
+            filter.Validate(cb);
         }
     }
 
@@ -453,30 +590,32 @@ class UnbeatenATFilters {
             DrawIdRangeFilter(IdRange::R100_200K, "IDs 100k-200k");
             UI::SameLine();
             DrawIdRangeFilter(IdRange::R200_300K, "IDs 200k-300k");
+            UI::SameLine();
+            DrawIdRangeFilter(IdRange::R300_400K, "IDs 300k-400k");
 
             UI::SameLine();
-            ShouldPassAtCheck = TrackedCheckbox("AT isn't plugin", ShouldPassAtCheck);
+            FilterSettings::ShouldPassAtCheck = TrackedCheckbox("AT isn't plugin", FilterSettings::ShouldPassAtCheck);
             AddSimpleTooltip("Only show maps that passed \"Author Time Check\" plugin check.\nAlso shows maps where validation replay was submitted", 600);
 
             UI::SameLine();
             UI::SetNextItemWidth(80);
-            IdFilter = TrackedInputText("ID starts with", IdFilter);
+            FilterSettings::IdFilter = TrackedInputText("ID starts with", FilterSettings::IdFilter);
 
             UI::SameLine();
-            ShowOnlyNotes = TrackedCheckbox("Only with notes", ShowOnlyNotes);
+            FilterSettings::ShowOnlyNotes = TrackedCheckbox("Only with notes", FilterSettings::ShowOnlyNotes);
         }
 
         {
             UI::FieldName("Author Name:", LabelSize);
             UI::SetNextItemWidth(InputsSize);
-            AuthorFilter = TrackedInputText("##Author", AuthorFilter);
+            FilterSettings::AuthorFilter = TrackedInputText("##Author", FilterSettings::AuthorFilter);
 
             UI::SameLine();
             UI::SetCursorPos(UI::GetCursorPos() + vec2(50, 0));
 
             UI::FieldName("Map Name:", LabelSize);
             UI::SetNextItemWidth(InputsSize);
-            MapNameFilter = TrackedInputText("##MapName", MapNameFilter);
+            FilterSettings::MapNameFilter = TrackedInputText("##MapName", FilterSettings::MapNameFilter);
         }
 
         {
@@ -485,7 +624,9 @@ class UnbeatenATFilters {
                 AddSimpleTooltip("Filter by AT length");
                 UI::FieldName("Min:", 50);
                 UI::SetNextItemWidth(70);
-                LengthFilterMinMs = 1000 * TrackedInputInt("##LengthMin", int(LengthFilterMinMs / 1000), 0);
+                bool lengthFilterMinMsChanged;
+                auto lengthFilterMinMs = TrackedInputInt("##LengthMin", int(FilterSettings::LengthFilterMinMs / 1000), lengthFilterMinMsChanged, 0);
+                if (lengthFilterMinMsChanged) FilterSettings::LengthFilterMinMs = lengthFilterMinMs * 1000;
                 AddSimpleTooltip("Leave at 0 to not filter by max length.");
 
                 UI::SameLine();
@@ -493,7 +634,9 @@ class UnbeatenATFilters {
 
                 UI::FieldName("Max:", 50);
                 UI::SetNextItemWidth(70);
-                LengthFilterMaxMs = 1000 * TrackedInputInt("##LengthMax", int(LengthFilterMaxMs / 1000), 0);
+                bool lengthFilterMaxMsChanged;
+                auto lengthFilterMaxMs = TrackedInputInt("##LengthMax", int(FilterSettings::LengthFilterMaxMs / 1000), lengthFilterMaxMsChanged, 0);
+                if (lengthFilterMaxMsChanged) FilterSettings::LengthFilterMaxMs = lengthFilterMaxMs * 1000;
                 AddSimpleTooltip("Leave at 0 to not filter by max length.");
             }
 
@@ -504,35 +647,35 @@ class UnbeatenATFilters {
                 UI::FieldName("Uploaded:", LabelSize);
                 bool fromChanged, beforeChanged;
                 UI::FieldName("From:", 50);
-                DrawUploadedDateFilter("UploadedFrom", UploadedFrom);
+                DrawUploadedDateFilter("UploadedFrom", UploadedFrom, MarkChangedCB(this.UploadedFromChanged));
 
                 UI::SameLine();
                 UI::SetCursorPos(UI::GetCursorPos() + vec2(40, 0));
 
                 UI::FieldName("To:", 50);
                 UI::SameLine();
-                DrawUploadedDateFilter("UploadedBefore", UploadedBefore);
+                DrawUploadedDateFilter("UploadedBefore", UploadedBefore, MarkChangedCB(this.UploadedBeforeChanged));
             }
         }
 
         {
             UI::FieldName("Tags: ", 54);
-            TagsFilterStrict = TrackedCheckbox("AND", TagsFilterStrict);
+            FilterSettings::TagsFilterStrict = TrackedCheckbox("AND", FilterSettings::TagsFilterStrict);
             AddSimpleTooltip("If checked, map has to include all of the selected tags.\nOtherwise, map must have at least one of the selected tags.", 800);
             UI::SameLine();
             UI::SetNextItemWidth(InputsSize - 32);
-            DrawTagsFilter("##Tags", TagsFilter, TagsFilterStrict ? 3 : 0);
+            DrawTagsFilter("##Tags", TagsFilter, FilterSettings::TagsFilterStrict ? 3 : 0, MarkChangedCB(this.TagsFilterChanged));
 
             UI::SameLine();
             UI::SetCursorPos(UI::GetCursorPos() + vec2(50, 0));
 
             UI::FieldName("Exclude Tags: ", LabelSize);
             UI::SetNextItemWidth(InputsSize - 32);
-            DrawTagsFilter("##ExcludeTags", ExcludeTagsFilter);
+            DrawTagsFilter("##ExcludeTags", ExcludeTagsFilter, 0, MarkChangedCB(this.ExcludeTagsFilterChanged));
         }
 
         if (includeBeatenFilters) {
-            BeatenByFilter = TrackedInputText("Beaten By", BeatenByFilter);
+            FilterSettings::BeatenByFilter = TrackedInputText("Beaten By", FilterSettings::BeatenByFilter);
         }
 
         // UI::SameLine();
@@ -547,9 +690,9 @@ class UnbeatenATFilters {
     string[]@ beatenBySParts = {};
 
     void OnBeforeUpdate() {
-        @authorSParts = AuthorFilter.ToLower().Replace(" ", "*").Split("*");
-        @mapNameSParts = MapNameFilter.ToLower().Replace(" ", "*").Split("*");
-        @beatenBySParts = BeatenByFilter.ToLower().Replace(" ", "*").Split("*");
+        @authorSParts = FilterSettings::AuthorFilter.ToLower().Replace(" ", "*").Split("*");
+        @mapNameSParts = FilterSettings::MapNameFilter.ToLower().Replace(" ", "*").Split("*");
+        @beatenBySParts = FilterSettings::BeatenByFilter.ToLower().Replace(" ", "*").Split("*");
     }
 
     bool MatchString(string[]@ searchParts, const string &in text) {
@@ -834,6 +977,10 @@ class UnbeatenATMap {
         LoadMapNow(MapMonitor::MapUrl(TrackID));
     }
 
+    void OnClickEditMapCoro() {
+        EditMapNow(MapMonitor::MapUrl(TrackID));
+    }
+
     void OnClickPlayTogetherCoro() {
         _OnPlayMap_MarkPlayed();
         Together::SetRoomMap_Async(TrackUID);
@@ -1001,6 +1148,12 @@ class UnbeatenATMap {
             }
             if (UI::MenuItem("Open on TMX##" + TrackID)) {
                 OpenBrowserURL("https://trackmania.exchange/maps/"+TrackID+"?utm_source=unbeaten-ats-plugin");
+            }
+            if (UI::MenuItem("Copy TMX id##" + TrackID)) {
+                IO::SetClipboard(tostring(TrackID));
+            }
+            if (UI::MenuItem("Open in editor##" + TrackID)) {
+                startnew(CoroutineFunc(OnClickEditMapCoro));
             }
             if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
                 if (UI::MenuItem("Upload Validation Replay##" + TrackID)) {
