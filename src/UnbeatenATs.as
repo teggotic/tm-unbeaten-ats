@@ -998,7 +998,7 @@ class UnbeatenATMap {
 
         DrawATCol();
         DrawWRCols();
-        DrawTableEndCols();
+        DrawTableEndCols(showHiddenReason: false);
 
         UI::PopStyleVar();
     }
@@ -1022,11 +1022,7 @@ class UnbeatenATMap {
         DrawATCol();
         DrawWRCols();
 
-        UI::TableNextColumn();
-        UI::Text("\\$f60" + Icons::ExclamationTriangle);
-        AddSimpleTooltip(Reason);
-
-        DrawTableEndCols();
+        DrawTableEndCols(showHiddenReason: true);
 
         UI::PopStyleVar();
     }
@@ -1092,7 +1088,7 @@ class UnbeatenATMap {
         UI::TableNextColumn();
         UI::Text(ATBeatenUserDisplayName);
 
-        DrawTableEndCols();
+        DrawTableEndCols(showHiddenReason: false);
         UI::PopStyleVar();
     }
 
@@ -1130,7 +1126,7 @@ class UnbeatenATMap {
     }
 
     // 2 cols
-    void DrawTableEndCols() {
+    void DrawTableEndCols(bool showHiddenReason) {
         // player count
         UI::TableNextColumn();
         UI::Text("" + NbPlayers);
@@ -1138,6 +1134,12 @@ class UnbeatenATMap {
         // links
         UI::TableNextColumn();
         DrawLinkButtons();
+
+        if (showHiddenReason) {
+            UI::TableNextColumn();
+            UI::Text("\\$f60" + Icons::ExclamationTriangle);
+            AddSimpleTooltip(Reason);
+        }
 
         UI::TableNextColumn();
         UI::AlignTextToFramePadding();

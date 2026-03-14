@@ -41,8 +41,9 @@ void LoadMapNow(const string &in url, const string &in mode = "", const string &
     app.ManiaTitleControlScriptAPI.PlayMap(url, mode, settingsXml);
 }
 
+
 void EditMapNow(const string &in url) {
-    if (!Permissions::PlayLocalMap()) {
+    if (!Permissions::OpenAdvancedMapEditor()) {
         NotifyError("Refusing to load map because you lack the necessary permissions. Standard or Club access required");
         return;
     }
