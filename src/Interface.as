@@ -330,6 +330,10 @@ class PlayRandomTab : Tab {
             UI::Text("Name: " + chosen.Track_Name);
             UI::Text("Mapper: " + chosen.AuthorDisplayName);
             UI::Text("TMX: " + chosen.TrackID);
+            if (chosen.UploadedTimestamp != 0) {
+                auto diff = Math::Ceil((Time::get_Stamp() - chosen.UploadedTimestamp) / 60 / 60 / 24) ;
+                UI::Text("Uploaded AT: " + Time::FormatString("%Y-%m-%d", chosen.UploadedTimestamp) + " (~ " + diff + " days ago)");
+            }
             UI::Text("Tags: " + chosen.TagNames);
             UI::AlignTextToFramePadding();
             UI::Text("AT: ");

@@ -817,7 +817,7 @@ class UnbeatenATMap {
     string MapType;
     bool IsHidden = false;
     bool AtSetByPlugin = false;
-    int64 UploadedTimestamp = 1769868872;
+    int64 UploadedTimestamp = 0;
     string Reason = "";
     ReportedData@[] Reported = {};
     string TagNames;
