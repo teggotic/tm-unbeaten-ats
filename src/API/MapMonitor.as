@@ -40,7 +40,12 @@ void RefreshAPI() {
 
 string APIChoiceToBaseURL(UnbeatenATsAPI choice) {
     if (choice == UnbeatenATsAPI::XertroVs_API) return "https://map-monitor.xk.io";
+#if RELEASE
     if (choice == UnbeatenATsAPI::Teggots_API) return "https://map-monitor.teggot.name";
+#else
+    // if (choice == UnbeatenATsAPI::Teggots_API) return "https://map-monitor.teggot.name";
+    if (choice == UnbeatenATsAPI::Teggots_API) return "http://localhost:8081";
+#endif
     throw("unknown api choice: " + tostring(choice));
     return "";
 }
@@ -65,7 +70,11 @@ namespace MapMonitor {
     }
 
     Json::Value@ GetUnbeatenATsInfo() {
-        return CallMapMonitorApiPath('/tmx/unbeaten_ats');
+        if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
+            return CallMapMonitorApiPath('/tmx/unbeaten_ats/v2');
+        } else {
+            return CallMapMonitorApiPath('/tmx/unbeaten_ats');
+        }
     }
 
     Json::Value@ GetUnbeatenLeaderboard() {

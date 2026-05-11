@@ -38,8 +38,8 @@ namespace Together {
 
     bool get_HasMapChangerTimedOut() {
         return mapChanger !is null
-            && !IsReadyForMapChange
-            && (Time::Now - lastServerMapChange) > 15000;
+            && !IsReadyForMapChange;
+            // && (Time::Now - lastServerMapChange) > 15000;
     }
 }
 
@@ -84,8 +84,15 @@ namespace Together {
                 }
             } else if (Together::ServerInTimeAttackAndAdmin()) {
                 UI::BeginDisabled(!Together::IsReadyForMapChange);
-                if (UI::ButtonColored(label, 43.0 / 360.0, .75, .5)) {
-                    startnew(CoroutineFunc(chosen.OnClickPlayTogetherCoro));
+                if (chosen.IsTooBigForRoom()) {
+                    if (UI::ButtonColored(label, 10 / 360.0, .75, .5)) {
+                        startnew(CoroutineFunc(chosen.OnClickPlayTogetherCoro));
+                    }
+                    AddSimpleTooltip("You cannot play this map in online room.\nMap file size is too big for server to load it.\n(you can still try to load it into a room, but it will probably fail)", 600);
+                } else {
+                    if (UI::ButtonColored(label, 43.0 / 360.0, .75, .5)) {
+                        startnew(CoroutineFunc(chosen.OnClickPlayTogetherCoro));
+                    }
                 }
                 if (!showDisabledStatus) UI::SameLine();
                 UI::EndDisabled();

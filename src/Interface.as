@@ -35,12 +35,12 @@ TabGroup@ CreateRootTabGroup() {
     ListMapsTab(root);
     PlayRandomTab(root);
     RecentlyBeatenMapsTab(root);
-    LeaderboardTab(root);
     ListHiddenMapsTab(root);
     // UnbeatenATRoomsTab(root);
     // LookupMapTab(root);
-    AboutTab(root);
     TogetherTab(root);
+    LeaderboardTab(root);
+    AboutTab(root);
     return root;
 }
 
@@ -90,7 +90,7 @@ class ListMapsTab : Tab {
         UI::AlignTextToFramePadding();
         DrawOldAPIWarning();
 
-        UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
+        DrawUnbeatenTracksCount();
         DrawRefreshButton();
 
         if (g_isUserTrusted) {
@@ -106,7 +106,7 @@ class ListMapsTab : Tab {
         if (UI::BeginChild("unbeaten-ats-table")) {
             if (UI::BeginTable("unbeaten-ats", 11, tableFlags)) {
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
-                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
+                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 50);
                 UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
                 UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
                 UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
@@ -135,7 +135,7 @@ class ListMapsTab : Tab {
 
 class ListHiddenMapsTab : Tab {
     ListHiddenMapsTab(TabGroup@ parent) {
-        super(parent, "List Hidden Maps", "");
+        super(parent, "List Impossible Maps", "");
     }
     ListHiddenMapsTab(TabGroup@ parent, const string &in name, const string &in icon) {
         super(parent, name, icon);
@@ -157,7 +157,7 @@ class ListHiddenMapsTab : Tab {
     void DrawTable() {
         UI::AlignTextToFramePadding();
         DrawOldAPIWarning();
-        UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.hiddenMaps.Length + " (Filtered: "+g_UnbeatenATs.filteredHiddenMaps.Length+")");
+        UI::Text("# Impossible Unbeaten Tracks: " + g_UnbeatenATs.hiddenMaps.Length + " (Filtered: "+g_UnbeatenATs.filteredHiddenMaps.Length+")");
         DrawRefreshButton();
 
         UI::SameLine();
@@ -166,7 +166,7 @@ class ListHiddenMapsTab : Tab {
         if (UI::BeginChild("unbeaten-ats-table")) {
             if (UI::BeginTable("unbeaten-ats", 12, tableFlags)) {
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 40);
-                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
+                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 50);
                 UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
                 UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
                 UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
@@ -249,7 +249,7 @@ class RecentlyBeatenMapsTab : ListMapsTab {
             if (UI::BeginTable("unbeaten-ats", 10, tableFlags)) {
 
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 50);
-                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 40);
+                UI::TableSetupColumn("TMX ID", UI::TableColumnFlags::WidthFixed, 70 + 50);
                 UI::TableSetupColumn("Map Name", UI::TableColumnFlags::WidthStretch);
                 UI::TableSetupColumn("Mapper", UI::TableColumnFlags::WidthFixed, 120);
                 // UI::TableSetupColumn("Tags", UI::TableColumnFlags::WidthFixed, 100);
@@ -298,6 +298,10 @@ class RecentlyBeatenMapsTab : ListMapsTab {
     }
 }
 
+void DrawUnbeatenTracksCount() {
+    UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.legitMapsCount + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
+}
+
 class PlayRandomTab : Tab {
     PlayRandomTab(TabGroup@ parent) {
         super(parent, "Play Random", "");
@@ -308,7 +312,7 @@ class PlayRandomTab : Tab {
     void DrawInner() override {
         UI::AlignTextToFramePadding();
         DrawOldAPIWarning();
-        UI::Text("# Unbeaten Tracks: " + g_UnbeatenATs.maps.Length + " (Filtered: "+g_UnbeatenATs.filteredMaps.Length+")");
+        DrawUnbeatenTracksCount();
         DrawRefreshButton();
         UI::Separator();
         g_UnbeatenATs.DrawFilters();
@@ -343,7 +347,12 @@ class PlayRandomTab : Tab {
                 UI::Text("WR: " + Time::Format(chosen.WR) + " (+"+Time::Format(chosen.WR - chosen.AuthorTime)+")");
             else
                 UI::Text("WR: --");
-            UI::Text("# Players: " + chosen.NbPlayers);
+            if (chosen.NbPlayers == -1) {
+                UI::Text("# Players: unknown (?)");
+                AddSimpleTooltip("Server refreshes player count only every so often and for some maps it's not even available", 600);
+            } else {
+                UI::Text("# Players: " + chosen.NbPlayers);
+            }
             if (UI::Button("Play Now")) {
                 startnew(CoroutineFunc(chosen.OnClickPlayMapCoro));
             }
@@ -359,6 +368,10 @@ class PlayRandomTab : Tab {
 
             UI::Separator();
             Together::DrawPlayTogetherButton(chosen);
+            if (chosen.IsTooBigForRoom()) {
+                UI::SameLine();
+                UI::Text("Map file is too big to load into a room (you can still try to load it into a room, but it will probably fail)");
+            }
 #if DEV
             UI::Text("Curr Rules Time: " + GetServerCurrentRulesElapsedMillis());
             UI::Text("Rules Start: " + GetRulesStartTime());
@@ -476,6 +489,14 @@ class AboutTab : Tab {
         UI::Markdown("## Unbeaten ATs");
         UI::AlignTextToFramePadding();
         UI::TextWrapped("A plugin by XertroV in collaboration with Satamari. Currently maintained by teggot.");
+
+        UI::AlignTextToFramePadding();
+        UI::TextWrapped("We have a website now thanks to @Simek: ");
+        UI::SameLine();
+        if (UI::Button("unbeaten.at")) {
+           OpenBrowserURL("https://unbeaten.at");
+        }
+
         UI::AlignTextToFramePadding();
         UI::TextWrapped("For the 100k project, please use Satamari's spreadsheet as the authoritative list. This plugin should be consided a \\$f80beta\\$z. Please report issues on the openplanet discord.");
         if (UI::Button("Open Satamari's Unbeaten ATs Spreadsheet")) {
@@ -484,8 +505,13 @@ class AboutTab : Tab {
         UI::Separator();
         UI::AlignTextToFramePadding();
         UI::TextWrapped("Caveats with this plugin:");
-        UI::AlignTextToFramePadding();
-        UI::TextWrapped("Unbeaten maps are re-checked once every 2 hours or so.\nImpossible maps, cheated ATs, broken maps may be included in these lists (in future they'll be removed based on a TMX map pack + manual flagging).\nSome maps with old TMX records incorrectly report being beaten by the first person to beat it on the Nadeo LBs.\nA map won't show up in recently beaten if multiple people beat it at once.");
+        if (S_API_Choice == UnbeatenATsAPI::XertroVs_API) {
+            UI::AlignTextToFramePadding();
+            UI::TextWrapped("Unbeaten maps are re-checked once every 2 hours or so.\nImpossible maps, cheated ATs, broken maps may be included in these lists (in future they'll be removed based on a TMX map pack + manual flagging).\nSome maps with old TMX records incorrectly report being beaten by the first person to beat it on the Nadeo LBs.\nA map won't show up in recently beaten if multiple people beat it at once.");
+        } else if (S_API_Choice == UnbeatenATsAPI::Teggots_API) {
+            UI::TextWrapped("Map monitor gets new maps from tmx every 20-60 minutes. 7-days old maps are rechecked every 1-ish hour. All maps are refreshed every 2-ish hours.\nIf map becomes hidden on tmx, it would be hidden (eventually) in plugin too, rechecks about once a day.");
+            UI::TextWrapped("There is a small admin team that volounteers to check/review suspicious maps to mark as impossible/cheated/broken on best effort basis.\nWe try to be very concervative with \"impossible\" and \"cheated\" statuses, and never rely on just AT being set with map validator plugin; we always prefer to put a community note about our suspicions if we are not 99% sure. However, its always just our opinion whether or not map is actually impossible and we are open to unmark or if mapper decides to proof map is possible.\nMost older maps are reviewed already, but new maps appear too fast, so the newer the map, the more the chance for it to be impossible but not marked.\n\"Comminity notes\" is a feature available to admins only and we dont really need/accept feedback from general users. You can try telling one of admins (if you know who they are :))");
+        }
         UI::Separator();
         UI::AlignTextToFramePadding();
         UI::Text("Time since refresh: " + Time::Format(Time::Now - g_UnbeatenATs.LoadingDoneTime, false));
@@ -532,7 +558,10 @@ class TogetherTab : Tab {
         UI::Text("Together Mode (Club Room)");
         UI::SeparatorText("Instructions");
         UI::AlignTextToFramePadding();
-        UI::TextWrapped("A button will appear next to the Play button when you are in a club room. \\$f80You must be an admin for that club.");
+        UI::TextWrapped("Whenever you join a room, orange button (like one below) will appear next to play map both in 'List Maps' and 'Play Random' tabs. \\$f80You must be an admin in that club.");
+        UI::ButtonColored(Icons::Play + Icons::BuildingO + "##together-example", 43.0 / 360.0, .75, .5);
+        UI::SameLine();
+        UI::TextWrapped("(this is just an preview of how that button looks)");
 
         UI::SeparatorText("Status");
         UI::AlignTextToFramePadding();
@@ -741,10 +770,9 @@ namespace MapNotesDialog {
         string msg = "";
 
         Modal(ReportedData@[] &in data) {
-            super("Map notes###");
+            super("Map notes##");
             initialSize = vec2(800, 600);
             @this.data = data;
-            trace("data length: " + data.Length);
         }
 
         void Draw() override {
