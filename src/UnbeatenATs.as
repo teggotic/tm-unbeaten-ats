@@ -302,7 +302,7 @@ namespace UI {
             if (enableSearch) {
                 if (UI::IsWindowAppearing()) g_multiSelectSearch = "";
 
-                UI::SetNextItemWidth(200);
+                // UI::SetNextItemWidth(200);
                 g_multiSelectSearch = UI::InputText("##"+comboId+"-search", g_multiSelectSearch);
 
                 UI::Separator();
@@ -334,21 +334,31 @@ namespace UI {
             UI::PopStyleColor();
             AddSimpleTooltip("Any map can have " + maxAllowed + " tags at maximum. You should probably remove some tags or switch to OR mode.");
         }
-        UI::PushStyleColor(UI::Col::Button, vec4(1.0, 1.0, 1.0, 0.2));
-        UI::BeginDisabled(selected.Length == 0);
         UI::SameLine();
-        if (UI::Button("x##" + comboId)) {
+        if (UI::ResetButton("x##" + comboId, selected.Length, 0)) {
             selected.RemoveRange(0, selected.Length);
             if (cb !is null) cb();
         }
-        UI::EndDisabled();
-        UI::PopStyleColor();
     }
 
     const bool TrackedCheckbox(const string &in name, bool &in value, MarkChangedCB@ cb) {
         auto ret = UI::Checkbox(name, value);
         if (ret != value) cb();
         return ret;
+    }
+
+    bool ResetButton(const string &in label, int currentValue, const int defaultValue) {
+        UI::BeginDisabled(currentValue == defaultValue);
+        auto clicked = UI::Button(label);
+        UI::EndDisabled();
+        return clicked;
+    }
+
+    bool ResetButton(const string &in label, string &in currentValue, const string &in defaultValue) {
+        UI::BeginDisabled(currentValue == defaultValue);
+        auto clicked = UI::Button(label);
+        UI::EndDisabled();
+        return clicked;
     }
 }
 
@@ -627,8 +637,8 @@ class UnbeatenATFilters {
         return ret;
     }
 
-    void DrawUploadedDateFilter(const string &in label, UploadedDateFilter@ &in filter, MarkChangedCB@ cb) {
-        UI::SetNextItemWidth(85);
+    void DrawUploadedDateFilter(const string &in label, UploadedDateFilter@ &in filter, const int sz, MarkChangedCB@ cb) {
+        UI::SetNextItemWidth(sz);
         if (!filter.success) UI::PushStyleColor(UI::Col::Text, vec4(1.0, 0.3, 0.3, 1.0));
         bool filterChanged;
         filter.valueStr = UI::InputText("##" + label, filter.valueStr, filterChanged);
@@ -647,9 +657,13 @@ class UnbeatenATFilters {
     }
 
     void Draw(bool includeBeatenFilters = false) {
-        const int LabelSize = 130;
-        const int InputsSize = 330;
-        const int SecondColumnX = 500;
+        const int LabelSize = 130 * UI::GetScale();
+        const int InputsSize = 344;
+        const int SecondColumnX = Math::Max(530 * UI::GetScale(), LabelSize + InputsSize);
+        const int DateLabelSize = 52 * UI::GetScale(); 
+        const int DateInputSize = nvg::TextBounds("2026-01-01x").x;
+        const int SecondColumnInputSize = Math::Max(InputsSize, LabelSize * 2 + DateLabelSize * 2);
+        const int FramePadding = UI::GetStyleVarVec2(UI::StyleVar::FramePadding).x * UI::GetScale();
 
         {
             UI::AlignTextToFramePadding();
@@ -681,51 +695,45 @@ class UnbeatenATFilters {
             UI::SetNextItemWidth(InputsSize - 32);
             FilterSettings::AuthorFilter = TrackedInputText("##Author", FilterSettings::AuthorFilter);
             UI::SameLine();
-            UI::BeginDisabled(FilterSettings::AuthorFilter == "");
-            UI::SameLine();
-            if (UI::Button("x##AuthorName")) {
+            if (UI::ResetButton("x##AuthorName", FilterSettings::AuthorFilter, "")) {
                 FilterSettings::AuthorFilter = "";
                 MarkChanged();
             }
-            UI::EndDisabled();
-
             UI::SameLine();
             UI::SetCursorPos(vec2(SecondColumnX, UI::GetCursorPos().y));
 
             {
                 UI::FieldName("AT (seconds):", LabelSize);
                 AddSimpleTooltip("Filter by AT length");
-                UI::FieldName("Min:", 50);
-                UI::SetNextItemWidth(85);
-                bool lengthFilterMinMsChanged;
-                auto lengthFilterMinMs = TrackedInputInt("##LengthMin", int(FilterSettings::LengthFilterMinMs / 1000), lengthFilterMinMsChanged, 0);
-                if (lengthFilterMinMsChanged) FilterSettings::LengthFilterMinMs = lengthFilterMinMs * 1000;
-                AddSimpleTooltip("Leave at 0 to not filter by max length.");
+                UI::MeasureStart();
+                    UI::MeasureStart();
+                        UI::FieldName("Min:", DateLabelSize);
+                        UI::SetNextItemWidth(DateInputSize);
+                        bool lengthFilterMinMsChanged;
+                        auto lengthFilterMinMs = TrackedInputInt("##LengthMin", int(FilterSettings::LengthFilterMinMs / 1000), lengthFilterMinMsChanged, 0);
+                        if (lengthFilterMinMsChanged) FilterSettings::LengthFilterMinMs = lengthFilterMinMs * 1000;
+                        AddSimpleTooltip("Leave at 0 to not filter by max length.");
+                    UI::SameLine();
+                    auto labelAndInputNoReset = UI::MeasureEnd("LengthMin labelAndInputNoReset: ");
+                    if (UI::ResetButton("x##LengthMin", FilterSettings::LengthFilterMinMs, 0)) {
+                        FilterSettings::LengthFilterMinMs = 0;
+                        MarkChanged();
+                    }
                 UI::SameLine();
-                UI::BeginDisabled(FilterSettings::LengthFilterMinMs == 0);
-                UI::SameLine();
-                if (UI::Button("x##LengthMin")) {
-                    FilterSettings::LengthFilterMinMs = 0;
-                    MarkChanged();
-                }
-                UI::EndDisabled();
+                auto sz = UI::MeasureEnd("Min input:");
+                UI::SetCursorPos(UI::GetCursorPos() + vec2(Math::Max(0, SecondColumnInputSize - sz.x - labelAndInputNoReset.x - 30), 0));
 
-                UI::SameLine();
-                // UI::SetCursorPos(UI::GetCursorPos() + vec2(10, 0));
-
-                UI::FieldName("Max:", 30);
-                UI::SetNextItemWidth(85);
+                UI::FieldName("Max:", DateLabelSize);
+                UI::SetNextItemWidth(DateInputSize);
                 bool lengthFilterMaxMsChanged;
                 auto lengthFilterMaxMs = TrackedInputInt("##LengthMax", int(FilterSettings::LengthFilterMaxMs / 1000), lengthFilterMaxMsChanged, 0);
                 if (lengthFilterMaxMsChanged) FilterSettings::LengthFilterMaxMs = lengthFilterMaxMs * 1000;
                 AddSimpleTooltip("Leave at 0 to not filter by max length.");
-                UI::BeginDisabled(FilterSettings::LengthFilterMaxMs == 0);
                 UI::SameLine();
-                if (UI::Button("x##LengthMax")) {
+                if (UI::ResetButton("x##LengthMax", FilterSettings::LengthFilterMaxMs, 0)) {
                     FilterSettings::LengthFilterMaxMs = 0;
                     MarkChanged();
                 }
-                UI::EndDisabled();
             }
         }
 
@@ -736,42 +744,37 @@ class UnbeatenATFilters {
             UI::SetNextItemWidth(InputsSize - 32);
             FilterSettings::MapNameFilter = TrackedInputText("##MapName", FilterSettings::MapNameFilter);
             UI::SameLine();
-            UI::BeginDisabled(FilterSettings::MapNameFilter == "");
-            UI::SameLine();
-            if (UI::Button("x##MapName")) {
+            if (UI::ResetButton("x##MapName", FilterSettings::MapNameFilter, "")) {
                 FilterSettings::MapNameFilter = "";
                 MarkChanged();
             }
-            UI::EndDisabled();
-
             UI::SameLine();
             UI::SetCursorPos(vec2(SecondColumnX, UI::GetCursorPos().y));
 
             {
                 UI::FieldName("Uploaded:", LabelSize);
                 bool fromChanged, beforeChanged;
-                UI::FieldName("From:", 50);
-                DrawUploadedDateFilter("UploadedFrom", UploadedFrom, MarkChangedCB(this.UploadedFromChanged));
-                UI::BeginDisabled(UploadedFrom.valueStr == "");
+                UI::MeasureStart();
+                    UI::MeasureStart();
+                        UI::FieldName("From:", DateLabelSize);
+                        DrawUploadedDateFilter("UploadedFrom", UploadedFrom, DateInputSize, MarkChangedCB(this.UploadedFromChanged));
+                    UI::SameLine();
+                    auto labelAndInputNoReset = UI::MeasureEnd("UploadedFrom labelAndInputNoReset: ");
+                    if (UI::ResetButton("x##UploadedFrom", UploadedFrom.valueStr, "")) {
+                        UploadedFrom.valueStr = "";
+                        UploadedFrom.Validate(MarkChangedCB(this.UploadedFromChanged));
+                    }
                 UI::SameLine();
-                if (UI::Button("x##UploadedFrom")) {
-                    UploadedFrom.valueStr = "";
-                    UploadedFrom.Validate(MarkChangedCB(this.UploadedFromChanged));
-                }
-                UI::EndDisabled();
+                auto sz = UI::MeasureEnd("UploadedFrom input:");
+                UI::SetCursorPos(UI::GetCursorPos() + vec2(Math::Max(0, SecondColumnInputSize - sz.x - labelAndInputNoReset.x - 30), 0));
 
+                UI::FieldName("To:", DateLabelSize);
+                DrawUploadedDateFilter("UploadedBefore", UploadedBefore, DateInputSize, MarkChangedCB(this.UploadedBeforeChanged));
                 UI::SameLine();
-                UI::SetCursorPos(UI::GetCursorPos() + vec2(10, 0));
-
-                UI::FieldName("To:", 30);
-                DrawUploadedDateFilter("UploadedBefore", UploadedBefore, MarkChangedCB(this.UploadedBeforeChanged));
-                UI::BeginDisabled(UploadedBefore.valueStr == "");
-                UI::SameLine();
-                if (UI::Button("x##UploadedBefore")) {
+                if (UI::ResetButton("x##UploadedBefore", UploadedBefore.valueStr, "")) {
                     UploadedBefore.valueStr = "";
                     UploadedBefore.Validate(MarkChangedCB(this.UploadedBeforeChanged));
                 }
-                UI::EndDisabled();
             }
         }
 
@@ -785,10 +788,12 @@ class UnbeatenATFilters {
 
         {
             UI::AlignTextToFramePadding();
-            UI::FieldName("Tags: ", 64);
-            FilterSettings::TagsFilterStrict = UI::TrackedCheckbox("AND", FilterSettings::TagsFilterStrict, MarkChangedCB(MarkChanged));
-            AddSimpleTooltip("If checked, map has to include all of the selected tags.\nOtherwise, map must have at least one of the selected tags.", 800);
-            UI::SameLine();
+            UI::BeginField(LabelSize);
+                UI::Text("Tags: ");
+                UI::SameLine();
+                FilterSettings::TagsFilterStrict = UI::TrackedCheckbox("AND", FilterSettings::TagsFilterStrict, MarkChangedCB(MarkChanged));
+                AddSimpleTooltip("If checked, map has to include all of the selected tags.\nOtherwise, map must have at least one of the selected tags.", 800);
+            UI::EndField();
             UI::SetNextItemWidth(InputsSize - 32);
             UI::DrawMultiselect("##Tags", TagsFilter, tagsMultiselectOptions, tagLookup, "\\$888no tags selected", FilterSettings::TagsFilterStrict ? 3 : 0, MarkChangedCB(this.TagsFilterChanged));
 
@@ -806,7 +811,9 @@ class UnbeatenATFilters {
                 };
                 UI::FieldName("Show excluded \\$aa0(?)\\$fff: ", LabelSize);
                 AddSimpleTooltip("Include 'cheated'/'broken', but still possible maps");
-                UI::SetNextItemWidth(InputsSize - 29);
+                // I genuenly have no clue how to control size of BeginCombo and why offset doesnt scale linearly with UI::GetScale();
+                // This makes it look correct at 1 scale, and only slightly off at higher values.
+                UI::SetNextItemWidth(SecondColumnInputSize / UI::GetScale() - 35 / UI::GetScale());
                 UI::DrawMultiselect("##Hints", HintsFilter, allHints, lookup, FilterSettings::ShowOnlyWithHints ? "-" : "\\$888filtered out", 0, MarkChangedCB(this.HintsFilterChanged));
             }
         }

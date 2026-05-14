@@ -14,6 +14,16 @@ void UI_Main_Render() {
         startnew(GetUnbeatenATsInfo);
     }
 
+    if (UI::g_measureStack.Length > 0) {
+       warn("g_measureStack was not cleared out!");
+       UI::g_measureStack.RemoveRange(0, UI::g_measureStack.Length);
+    }
+
+    if (UI::g_fieldStack.Length > 0) {
+       warn("g_fieldStack was not cleared out!");
+       UI::g_fieldStack.RemoveRange(0, UI::g_fieldStack.Length);
+    }
+
     UI::SetNextWindowSize(1150, 600, UI::Cond::Appearing);
     if (UI::Begin(MenuTitle, g_showWindow, UI::WindowFlags::NoCollapse)) {
         if (g_UnbeatenATs is null || !g_UnbeatenATs.LoadingDone) {
