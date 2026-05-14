@@ -135,7 +135,7 @@ class ListMapsTab : Tab {
 
 class ListHiddenMapsTab : Tab {
     ListHiddenMapsTab(TabGroup@ parent) {
-        super(parent, "List Impossible Maps", "");
+        super(parent, "Impossible Maps", "");
     }
     ListHiddenMapsTab(TabGroup@ parent, const string &in name, const string &in icon) {
         super(parent, name, icon);
@@ -225,10 +225,10 @@ enum RecentlyBeatenList {
 class RecentlyBeatenMapsTab : ListMapsTab {
 
     RecentlyBeatenMapsTab(TabGroup@ parent) {
-        super(parent, "Recently Beaten ATs", "");
+        super(parent, "Recently Beaten", "");
     }
 
-    RecentlyBeatenList showList = RecentlyBeatenList::First_100k_Only;
+    RecentlyBeatenList showList = RecentlyBeatenList::All;
 
     void DrawTable() override {
         UI::AlignTextToFramePadding();
@@ -314,7 +314,6 @@ class PlayRandomTab : Tab {
         DrawOldAPIWarning();
         DrawUnbeatenTracksCount();
         DrawRefreshButton();
-        UI::Separator();
         g_UnbeatenATs.DrawFilters();
         UI::AlignTextToFramePadding();
 
