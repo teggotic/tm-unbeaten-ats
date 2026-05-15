@@ -41,7 +41,6 @@ void UI_Main_Render() {
 
 TabGroup@ CreateRootTabGroup() {
     auto root = RootTabGroupCls();
-    // OverviewTab(root);
     ListMapsTab(root);
     PlayRandomTab(root);
     RecentlyBeatenMapsTab(root);
@@ -60,20 +59,6 @@ void DrawOldAPIWarning() {
         UI::TextWrapped("\\$f60" + Icons::ExclamationTriangle + "You are using deprecated XertroVs API, which is currently not updating maps. You should probably switch to Teggots API in settings, which has up to date list of maps, but some features are not supported.");
     }
 }
-
-// class OverviewTab : Tab {
-//     OverviewTab(TabGroup@ parent) {
-//         super(parent, "Overview", "");
-//     }
-
-//     void DrawInner() override {
-//         if (g_UnbeatenATs is null || !g_UnbeatenATs.LoadingDone) {
-//             UI::Text("Loading Unbeaten ATs...");
-//             return;
-//         }
-//         UI::Text("Number of Unbeaten Maps: " + g_UnbeatenATs.maps.Length);
-//     }
-// }
 
 class ListMapsTab : Tab {
     ListMapsTab(TabGroup@ parent) {

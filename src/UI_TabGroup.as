@@ -44,9 +44,13 @@ class TabGroup {
     void DrawTabs() {
         UI::BeginTabBar(groupName);
 
+        UI::PushStyleColor(UI::Col::TabHovered, vec4(.376, .216, .655, 1));
+        UI::PushStyleColor(UI::Col::TabSelected, vec4(.376, .216, .655, .5));
         for (uint i = 0; i < tabs.Length; i++) {
             tabs[i].DrawTab();
         }
+        UI::PopStyleColor();
+        UI::PopStyleColor();
 
         UI::EndTabBar();
     }
@@ -129,9 +133,7 @@ class TabGroup {
 class RootTabGroupCls : TabGroup {
     RootTabGroupCls() {
         super("Root", null);
-        // root
         groupName = "Root";
-        // fullName = "E++";
         fullName = PluginIcon + "\\$z";
         IsRoot = true;
     }
